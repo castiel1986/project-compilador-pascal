@@ -1,0 +1,475 @@
+
+/*+--------------------------------------------------------------------+
+  |   Projeto - COMPILADOR PASCAL PARA WEB.                            |
+  |   Por: Luiz Eduardo da Silva                                       |
+  |        Everton Josué da Silva                                      |
+  +--------------------------------------------------------------------+*/
+
+import java.util.*;
+
+parser code  {:
+
+    StringBuilder mepa, saida;
+    int numeroRotinas;
+    Erro e;
+    int contaVars;
+    int rotulo;
+    int numeroEntradas;
+    int endereco;
+    int nivel;
+    String ultimoRotulo;
+    LinkedList<ElemPilhaSem> pilhaSem = new LinkedList<ElemPilhaSem>();
+    HashMap<ElemTabSimb, InfoComplementar> tabSimbolo = new HashMap<ElemTabSimb, InfoComplementar>();
+    ElemTabSimb elemTab;
+    ElemPilhaSem elemPilha;
+
+    public sintatico(java.io.Reader input, StringBuilder mep, StringBuilder sai, Erro err) {
+        super (new lexico (input));
+        mepa = mep;
+        saida = sai;
+        e = err;
+    }
+
+    public void report_semantic_error (String message) {
+        report_error (message, cur_token);
+        done_parsing();
+    }
+
+    public void report_error(String message, Object info) {
+        Simbolo simb = (Simbolo)info;
+        saida.append("ERRO na linha "+simb.getLine()+": "+message);
+        e.setaErro (simb.getLine(), simb.getColumn ());
+    }
+
+    public void report_fatal_error (String message, Object info) {
+        done_parsing();
+    }
+
+    public void syntax_error(java_cup.runtime.Symbol current) {
+        report_error("Sintatico", current);
+    }
+
+    private void eleminaSimbolos(int x){
+        for(; x > 0; x--){
+            tabSimbolo.remove(new Object());
+        }
+    }
+
+:};
+
+terminal S_DIFERENTE, S_DOISPTOS, S_FECHAPAR, S_PROCEDURE, S_FUNCTION,
+         S_MAIGUAL, S_MEIGUAL, S_PROGRAM, S_PONTOVG, S_ABREPAR, S_VIRGULA,
+         S_ATRIBUI, S_NUMERO, S_WHILE, S_WRITE, S_READ, S_MAIOR, S_MENOR,
+         S_IGUAL, S_MENOS, S_VEZES, S_PONTO, S_BEGIN, S_THEN,
+         S_ELSE, S_MAIS, S_VAR, S_END, S_DIV, S_AND, S_NOT,
+         S_IF, S_DO, S_OR, S_REPEAT, S_UNTIL, S_IDENTIF;
+
+non terminal programa, bloco, variaveis, declaracoes_de_vars,
+             lista_de_identificadores, corpo, sequencia_comandos,
+             comando_sem_rotulo, chamada_comando_escrita,
+             chamada_comando_leitura, lista_de_expressoes,
+             lista_de_variaveis, atribuicao, composto,
+             lista_comandos_sem_rotulo, condicional, alternativa_cond,
+             repetitivo, expressao, expressao_simples, termo, fator;
+
+start with programa;
+
+/*+----------------------------------------------------------+
+  |        Producoes Sintaticas da linguagem PASCAL          |
+  +----------------------------------------------------------+*/
+
+programa 
+      ::=
+          {: parser.mepa.append ("\tINPP\n"); :}
+          S_PROGRAM S_IDENTIF S_PONTOVG
+          bloco S_PONTO
+             {: parser.mepa.append ("\tPARA\n\tFIM\n\n"); :}
+;
+
+bloco
+      ::= variaveis declaracao_de_funcoes_e_procendimentos corpo
+;
+
+variaveis
+      ::=  /* vazio */
+      | S_VAR {: parser.contaVars = 0; :}
+        declaracoes_de_vars
+        {:
+            if(parser.contaVars > 0){
+                parser.mepa.append ("\tAMEM\t"+parser.contaVars+"\n");
+                elemPilha = new VariaveisDeclaradas(parser.contaVars);
+                pilhaSem.add(elemPilha);
+                elemPilha = new NivelCorrente(parser.nivel);
+                pilhaSem.add(elemPilha);
+            }
+        :}
+;
+
+declaracoes_de_vars
+      ::= declaracoes_de_vars
+        lista_de_identificadores S_DOISPTOS S_IDENTIF S_PONTOVG
+      | lista_de_identificadores S_DOISPTOS S_IDENTIF S_PONTOVG
+;
+
+declaracao_de_funcoes_e_procendimentos
+    ::=  /*vazio*/
+    | {:
+          parser.mepa.append ("\tDSVS\t"+parser.rotulo+"\n");
+          elemPilha = new Rotulo(parser.rotulo);
+          pilhaSem.add(elemPilha);
+      :}
+      lista_de_declaracao_de_funcao_ou_procedimento S_PONTOVG
+      {:
+          elemPilha = pilhaSem.pool();
+          parser.numeroRontinas++;
+          if(elemPilha instanceof Rotulo){
+              parser.mepa.append ("L"+((Rotulo)elemPilha).getRotulo()+":\tNADA\n");
+          }
+      :}
+;
+
+lista_de_declaracao_de_funcao_ou_procedimento
+    ::= lista_de_declaracao_de_funcao_ou_procedimento S_PONTOVG
+            {: parser.nivel++; :}
+        declaracao_de_funcao_ou_procedimento
+            {: parser.nivel--; :}
+    |       {: parser.nivel++; :}
+        declaracao_de_funcao_ou_procedimento
+            {: parser.nivel--; :}
+;
+
+declaracao_de_funcao_ou_procedimento
+    ::= {:
+            parser.rotulo++;
+            parser.numeroEntradas = 0;
+        :}
+    declaracao_de_procedimento
+        {: parser.eliminaSimbolos(parser.numeroEntradas); :}
+    | {:
+          parser.rotulo++;
+          parser.numeroEntradas = 0;
+      :}
+    declaracao_de_funcao
+;
+
+declaracao_de_procedimento
+    ::= {: parser.mepa.append ("L"+((Rotulo)elemPilha).getRotulo()+":\tEMPR\t"+parser.nivel+"\n"); :}
+        cabecalho_procedimento S_PONTOVG
+        bloco
+            {:
+                if(pilhaSem.peekLast() instanceof NivelCorrente){
+                    parser.eliminaSimbolos(1);
+                    elemPilha = pilhaSem.pool();
+                    if(elemPilha instanceof VariaveisDeclaradas){
+                        parser.mepa.append ("\tDMEM\t"+((VariaveisDeclaras)elemPilha).getNumVarDec()+"\n");
+                    }
+                }
+                parser.mepa.append ("\tRTPR\t"+parser.nivel+", "+parser.numeroEntradas+"\n");
+            :}
+;
+
+cabecalho_procedimento
+    ::= S_PROCEDURE S_IDENTIF:id
+            {:
+                 parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
+                 if(parser.tabSimbolo.containsKey(parser.elemTab)){
+                    parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
+                 }else{
+                    parser.tabSimbolo.put(parser.elemTab, new Procedimento(parser.rotulo));
+                 }
+            :}
+    | S_PROCEDURE S_IDENTIF:id
+            {:
+                 parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
+                 if(parser.tabSimbolo.containsKey(parser.elemTab)){
+                    parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
+                 }else{
+                    parser.tabSimbolo.put(parser.elemTab, new Procedimento(parser.rotulo));
+                 }
+            :}
+      lista_formal_de_parametros
+;
+
+lista_formal_de_parametros
+    ::= S_ABREPAR secao_lista_de_parametros_formais S_FECHAPAR
+;
+
+secao_lista_de_parametros_formais
+    ::= secao_lista_de_parametros_formais S_PONTOVG secao_de_parametros_formais
+    | secao_de_parametros_formais
+;
+
+secao_de_parametros_formais
+    ::= parametro_por_valor
+    | parametro_por_referencia
+;
+
+parametro_por_valor
+    ::= lista_de_parametros
+        {:
+            elemPilha = Mecanismo.PAS_VAL;
+            pilhaSem.add(elemPilha);
+        :}
+        S_DOISPTOS S_IDENTIF
+;
+
+parametro_por_referencia
+    ::= S_VAR lista_de_parametros
+        {:
+            elemPilha = Mecanismo.PAS_END;
+            pilhaSem.add(elemPilha);
+        :}
+        S_DOISPTOS S_IDENTIF
+;
+
+lista_de_identificadores
+      ::= lista_de_identificadores S_VIRGULA S_IDENTIF:id
+          {:
+             parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
+             if(parser.tabSimbolo.containsKey(parser.elemTab)){
+                parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
+             }else{
+                parser.tabSimbolo.put(parser.elemTab, new Variavel(parser.contaVars));
+                parser.contaVars++;
+             }
+          :}
+      | S_IDENTIF:id
+          {:
+             parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
+             if(parser.tabSimbolo.containsKey(parser.elemTab)){
+                parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
+             }else{
+                parser.tabSimbolo.put(parser.elemTab, new Variavel(parser.contaVars));
+                parser.contaVars++;
+             }
+          :}
+      ;
+
+corpo
+      ::= S_BEGIN sequencia_comandos S_END
+      ;
+
+sequencia_comandos
+      ::= sequencia_comandos S_PONTOVG comando_sem_rotulo
+      | comando_sem_rotulo
+      ;
+
+comando_sem_rotulo
+      ::=  /* vazio */
+      | chamada_comando_escrita
+      | chamada_comando_leitura
+      | atribuicao
+      | composto
+      | condicional
+      | repetitivo
+      ;
+
+chamada_comando_escrita
+      ::= S_WRITE
+        S_ABREPAR lista_de_expressoes S_FECHAPAR
+      ;
+
+chamada_comando_leitura
+      ::= S_READ
+        S_ABREPAR lista_de_variaveis S_FECHAPAR
+      ;
+
+lista_de_expressoes
+      ::=  /* vazio */
+      | lista_de_expressoes S_VIRGULA
+        expressao
+          {: parser.mepa.append ("\tIMPR\n"); :}
+      |
+        expressao
+          {: parser.mepa.append ("\tIMPR\n"); :}
+      ;
+
+lista_de_variaveis
+      ::=  /* vazio */
+      | lista_de_variaveis S_VIRGULA
+        S_IDENTIF:id
+          {:
+             parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
+             //Obs: Referir a variavel com nivel inferior
+             if(!parser.tabSimbolo.containsKey(parser.elemTab)){
+                parser.report_semantic_error ("Identificador <"+id+"> não declarado!");
+             }
+             else {
+                parser.elemTab.setInfoC(parser.tabSimbolo.get(parser.elemTab));
+                parser.mepa.append ("\tLEIT\n");
+                parser.mepa.append ("\tARMZ\t"+((Variavel)parser.elemTab.getInfoC()).getDeslocamento()+"\n");
+             }
+          :}
+
+      |
+        S_IDENTIF:id
+          {:
+             parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
+             // Obs: Referir a variavel com nivel inferior
+             if(!parser.tabSimbolo.containsKey(parser.elemTab)){
+                parser.report_semantic_error ("Identificador <"+id+"> não declarado!");
+             }
+             else {
+                parser.elemTab.setInfoC(parser.tabSimbolo.get(parser.elemTab));
+                parser.mepa.append ("\tLEIT\n");
+                parser.mepa.append ("\tARMZ\t"+((Variavel)parser.elemTab.getInfoC()).getDeslocamento()+"\n");
+             }
+          :}
+
+      ;
+
+atribuicao
+      ::= S_IDENTIF:id
+          {:
+             parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
+             if(!parser.tabSimbolo.containsKey(parser.elemTab)){
+                parser.report_semantic_error ("Identificador <"+id+"> não declarado!");
+             }
+             else{
+                parser.elemTab.setInfoC(parser.tabSimbolo.get(parser.elemTab));
+                parser.pilhaSem.add (new Integer(((Variavel)parser.elemTab.getInfoC()).getDeslocamento()));
+             }
+          :}
+        S_ATRIBUI expressao
+          {:
+             parser.mepa.append ("\tARMZ\t"+parser.pilhaSem.get(parser.pilhaSem.size()-1)+"\n");
+             parser.pilhaSem.remove (parser.pilhaSem.size()-1);
+          :}
+      ;
+
+composto
+      ::= S_BEGIN lista_comandos_sem_rotulo S_END
+      ;
+
+lista_comandos_sem_rotulo
+      ::= lista_comandos_sem_rotulo S_PONTOVG comando_sem_rotulo
+      | comando_sem_rotulo
+      ;
+
+condicional
+      ::= S_IF
+        expressao
+          {:
+             parser.rotulo++;
+             parser.mepa.append ("\tDSVF\tL"+parser.rotulo+"\n");
+             parser.pilhaSem.add (new Integer(parser.rotulo));
+          :}
+        S_THEN
+        comando_sem_rotulo
+        alternativa_cond
+          {:
+             parser.mepa.append ("L"+parser.pilhaSem.get(parser.pilhaSem.size()-1)+":\tNADA\n");
+             parser.pilhaSem.remove (parser.pilhaSem.size()-1);
+          :}
+      ;
+
+alternativa_cond
+      ::= /* vazio */
+      | S_ELSE
+          {:
+             parser.rotulo++;
+             parser.mepa.append ("\tDSVS\tL"+parser.rotulo+"\n");
+             parser.mepa.append ("L"+parser.pilhaSem.get(parser.pilhaSem.size()-1)+":\tNADA\n");
+             parser.pilhaSem.remove (parser.pilhaSem.size()-1);
+             parser.pilhaSem.add (new Integer(parser.rotulo));
+          :}
+        comando_sem_rotulo
+      ;
+
+repetitivo
+      ::= S_WHILE
+          {:
+             parser.rotulo++;
+             parser.mepa.append ("L"+parser.rotulo+":\tNADA\n");
+             parser.pilhaSem.add (new String(Integer.toString(parser.rotulo)));
+          :}
+        expressao
+          {:
+             parser.rotulo++;
+             parser.mepa.append ("\tDSVF\tL"+parser.rotulo+"\n");
+             parser.pilhaSem.add (new String(Integer.toString(parser.rotulo)));
+          :}
+        S_DO comando_sem_rotulo
+          {:
+             parser.ultimoRotulo = (String)parser.pilhaSem.get(parser.pilhaSem.size()-1);
+             parser.pilhaSem.remove(parser.pilhaSem.size()-1);
+             parser.mepa.append ("\tDSVS\tL"+parser.pilhaSem.get(parser.pilhaSem.size()-1)+"\n");
+             parser.mepa.append ("L"+parser.ultimoRotulo+":\tNADA\n");
+             parser.pilhaSem.remove (parser.pilhaSem.get(parser.pilhaSem.size()-1));
+          :}
+      |
+        S_REPEAT
+          {:
+             parser.rotulo++;
+             parser.mepa.append ("L"+parser.rotulo+":\tNADA\n");
+             parser.pilhaSem.add (new String(Integer.toString(parser.rotulo)));
+          :}
+        sequencia_comandos
+        S_UNTIL
+        expressao
+          {:
+             parser.ultimoRotulo = (String)parser.pilhaSem.get(parser.pilhaSem.size()-1);
+             parser.pilhaSem.remove (parser.pilhaSem.size()-1);
+             parser.mepa.append ("\tDSVF\tL"+parser.ultimoRotulo+"\n");
+          :}
+      ;
+
+expressao
+      ::= expressao_simples S_IGUAL   expressao_simples
+          {: parser.mepa.append ("\tCMIG\n"); :}
+      | expressao_simples S_DIFERENTE expressao_simples
+          {: parser.mepa.append ("\tCMDG\n"); :}
+      | expressao_simples S_MENOR     expressao_simples
+          {: parser.mepa.append ("\tCMME\n"); :}
+      | expressao_simples S_MAIOR     expressao_simples
+          {: parser.mepa.append ("\tCMMA\n"); :}
+      | expressao_simples S_MEIGUAL   expressao_simples
+          {: parser.mepa.append ("\tCMEG\n"); :}
+      | expressao_simples S_MAIGUAL   expressao_simples
+          {: parser.mepa.append ("\tCMAG\n"); :}
+      | expressao_simples
+      ;
+
+expressao_simples
+      ::= expressao_simples S_MAIS  termo
+          {: parser.mepa.append ("\tSOMA\n"); :}
+      | expressao_simples S_MENOS termo
+          {: parser.mepa.append ("\tSUBT\n"); :}
+      | expressao_simples S_OR    termo
+          {: parser.mepa.append ("\tDISJ\n"); :}
+      | S_MAIS termo
+      | S_MENOS termo
+          {: parser.mepa.append ("\tINVR\n"); :}
+      | termo
+      ;
+
+termo
+      ::= termo S_VEZES fator
+          {: parser.mepa.append ("\tMULT\n"); :}
+      | termo S_DIV fator
+          {: parser.mepa.append ("\tDIVI\n"); :}
+      | termo S_AND fator
+          {: parser.mepa.append ("\tCONJ\n"); :}
+      | fator
+      ;
+
+fator
+      ::=
+        S_IDENTIF:id
+          {:
+             parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
+             if(!parser.tabSimbolo.containsKey(parser.elemTab)){
+                parser.report_semantic_error ("Identificador <"+id+"> não declarado!");
+             }
+             else{
+                parser.elemTab.setInfoC(parser.tabSimbolo.get(parser.elemTab));
+                parser.mepa.append ("\tCRVL\t"+((Variavel) parser.elemTab.getInfoC()).getDeslocamento()+"\n");
+             }
+          :}
+      |
+        S_NUMERO:numero
+          {: parser.mepa.append ("\tCRCT\t"+numero+"\n"); :}
+      | S_ABREPAR expressao S_FECHAPAR
+      | S_NOT fator
+          {: parser.mepa.append ("\tNEGA\n"); :}
+      ;
