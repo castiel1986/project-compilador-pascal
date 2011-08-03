@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project name="CompiladorPascalV2" default="default" basedir=".">
+    <description>Builds, tests, and runs the project CompiladorPascalV2.</description>
+    <import file="nbproject/build-impl.xml"/>
+
+    <property name="src" location="src"/>
+
+    <taskdef classname="JFlex.anttask.JFlexTask" name="jflex">
+        <classpath>
+            <pathelement path="/jflex/lib/JFlex.jar"/>
+        </classpath>
+    </taskdef>
+
+    <taskdef name="cup" classname="java_cup.anttask.CUPTask">
+        <classpath>
+            <pathelement path="/JCup/java-cup-11a.jar"/>
+        </classpath>
+    </taskdef>
+
+  <!-- Create the Lexer.java file -->
+    <target name="jflex" description="do the jflex thing">
+        <jflex file="${src}/lexico.lex" destdir="${src}" />
+    </target>
+
+    <target name="cup">
+        <cup srcfile="${src}/sintatico.cup"
+            expect="1"
+            parser="sintatico"
+            symbols="sym"
+            destdir="${src}"
+            interface="true"
+        />
+    </target>
+
+    <target name="clear"
+        description="clean up" >
+        <delete file="${src}/lexico.java"/>
+        <delete file="${src}/sintatico.java"/>
+        <delete file="${src}/sym.java"/>
+    </target>
+
+    <target name="criaJFlexJCup" depends="jflex,cup"
+        description="generate the distribution" >
+    </target>
+
+</project>
