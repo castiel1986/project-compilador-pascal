@@ -268,24 +268,32 @@ cabecalho_procedimento
 ;
 
 lista_formal_de_parametros
-    ::= S_ABREPAR secao_lista_de_parametros_formais S_FECHAPAR
-        {:
-            int i;
-            Parametro p;
-            LinkedList<Parametro> param = new LinkedList<Parametro>();
-                    
-            //Setar deslocamento para os parametros
-            for(i = parser.numeroEntradas; i > 0; i--){            
-                p = (Parametro) parser.pilhaSem.pollLast();
-                p.setDeslocamento(-3-(parser.numeroEntradas-i));
-                param.add(p);
-            }
-            
-            //Adicionar os parametros novamente
-            for( i = parser.numeroEntradas; i > 0; i--){
-                parser.pilhaSem.add(param.pollLast());
-            }
-        :}
+    ::= S_ABREPAR 
+    {:
+        parser.nivel++;
+    :}
+    secao_lista_de_parametros_formais 
+    {:
+        parser.nivel--;
+    :}
+    S_FECHAPAR
+    {:
+        int i;
+        Parametro p;
+        LinkedList<Parametro> param = new LinkedList<Parametro>();
+
+        //Setar deslocamento para os parametros
+        for(i = parser.numeroEntradas; i > 0; i--){            
+            p = (Parametro) parser.pilhaSem.pollLast();
+            p.setDeslocamento(-3-(parser.numeroEntradas-i));
+            param.add(p);
+        }
+
+        //Adicionar os parametros novamente
+        for( i = parser.numeroEntradas; i > 0; i--){
+            parser.pilhaSem.add(param.pollLast());
+        }
+    :}
 ;
 
 secao_lista_de_parametros_formais
@@ -414,29 +422,49 @@ lista_de_parametros
 ;
 
 lista_de_identificadores
-      ::= lista_de_identificadores S_VIRGULA S_IDENTIF:id
-          {:
-             parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
-             if(parser.tabSimbolo.contains(parser.elemTab)){
+    ::= lista_de_identificadores S_VIRGULA S_IDENTIF:id
+    {:
+        int index;   
+        parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
+        index = parser.tabSimbolo.indexOf(parser.elemTab);
+        ElemTabSimb e;
+        if(index != -1){
+            e = parser.tabSimbolo.get(index);
+            if(parser.tabSimbolo.contains(parser.elemTab) && e.getNivel() == parser.nivel){
                 parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
-             }else{
+            }else{
                 parser.elemTab.setInfoC(new Variavel(parser.contaVars));
                 parser.tabSimbolo.add(parser.elemTab);
                 parser.contaVars++;
-             }
-          :}
-      | S_IDENTIF:id
-          {:
-             parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
-             if(parser.tabSimbolo.contains(parser.elemTab)){
+            }
+        }else{
+            parser.elemTab.setInfoC(new Variavel(parser.contaVars));
+            parser.tabSimbolo.add(parser.elemTab);
+            parser.contaVars++;
+        }
+    :}
+    | S_IDENTIF:id
+    {:
+        int index;   
+        parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
+        index = parser.tabSimbolo.indexOf(parser.elemTab);
+        ElemTabSimb e;
+        if(index != -1){
+            e = parser.tabSimbolo.get(index);
+            if(parser.tabSimbolo.contains(parser.elemTab) && e.getNivel() == parser.nivel){
                 parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
-             }else{
+            }else{
                 parser.elemTab.setInfoC(new Variavel(parser.contaVars));
                 parser.tabSimbolo.add(parser.elemTab);
                 parser.contaVars++;
-             }
-          :}
-      ;
+            }
+        }else{
+            parser.elemTab.setInfoC(new Variavel(parser.contaVars));
+            parser.tabSimbolo.add(parser.elemTab);
+            parser.contaVars++;
+        }
+    :}
+;
 
 corpo
       ::= S_BEGIN sequencia_comandos S_END
