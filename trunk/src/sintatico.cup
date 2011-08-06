@@ -13,7 +13,6 @@ parser code  {:
     int numeroRotinas;
     Erro e;
     int contaVars;
-    int numProcedimentos;
     int numeroEntradas;
     int numeroArgumentos;
     int rotulo;
@@ -54,17 +53,18 @@ parser code  {:
         report_error("Sintatico", current);
     }
 
-    public void eliminaSimbolos(int x){
+    public void eliminaSimbolos(int nivel){
 
-        int tamanhoTab = tabSimbolo.size() - 1;
-        while( x > 0){
-             tabSimbolo.remove(tamanhoTab--);
-             x--;
-         }
+        int tamanhoTab = this.tabSimbolo.size() - 1;
+        ElemTabSimb el;
+        while(tamanhoTab != -1 && (el = this.tabSimbolo.get(tamanhoTab)).getNivel() == nivel){
+            this.tabSimbolo.remove(tamanhoTab);
+            tamanhoTab--;
+        }
     }
 
     public void mostraTabSimb(){
-        System.out.println(tabSimbolo.toString()+"\n");
+        System.out.println("TabelaSimbolos - "+tabSimbolo.toString()+"\n");
     }
 
     public void mostraPilhaSem(){
@@ -107,42 +107,27 @@ programa
     ::=
     {: parser.mepa.append ("\tINPP\n"); :}
     S_PROGRAM S_IDENTIF S_PONTOVG bloco S_PONTO
-    {: parser.mepa.append ("\tPARA\n\tFIM\n"); 
-        if(parser.pilhaSem.peekLast() instanceof EntradasTabSim){
-            EntradasTabSim ets = (EntradasTabSim) parser.pilhaSem.peekLast();
-            if(ets.getNivel() == parser.nivel){
-                //parser.eliminaSimbolos(((VariaveisDeclaradas)parser.pilhaSem.peekLast()).getNumVarDec());
-                parser.elemPilha = parser.pilhaSem.pollLast();
-                parser.mepa.append("\tDMEM\t"+((EntradasTabSim)parser.elemPilha).getNumEntradas()+"\n");
-            }
-        }
-        parser.mostraTabSimb(); 
+    {: 
+        parser.mepa.append ("\tPARA\n\tFIM\n");
     :}
 ;
 
 bloco
     ::= 
-    {: parser.nivel++; :} 
-    variaveis declaracao_de_funcoes_e_procendimentos corpo
+    {: 
+        parser.nivel++; 
+    :} 
+    variaveis declaracao_de_funcoes_e_procendimentos
+    corpo
     {:  
-        //Eliminar assinaturas de procedimentos da tabela de símbolos
-        if(parser.pilhaSem.peekLast() instanceof EntradasTabSim){
-            EntradasTabSim ets = (EntradasTabSim) parser.pilhaSem.peekLast();
-            if(ets.getNivel() == parser.nivel){
-                parser.elemPilha = parser.pilhaSem.pollLast();
-                parser.eliminaSimbolos(ets.getNumEntradas());
-            }
-        }
-        //Eliminar variáveis globais da tabela de símbolos    
         if(parser.pilhaSem.peekLast() instanceof EntradasTabSim){
             EntradasTabSim ets = (EntradasTabSim) parser.pilhaSem.peekLast();
             if(ets.getNivel() == parser.nivel){
                 parser.elemPilha = parser.pilhaSem.pollLast();
                 parser.mepa.append("\tDMEM\t"+((EntradasTabSim)parser.elemPilha).getNumEntradas()+"\n");
-                parser.eliminaSimbolos(ets.getNumEntradas());
             }
         }
-        parser.mostraPilhaSem();
+        parser.eliminaSimbolos(parser.nivel);
         parser.nivel--;
     :}
 ;
@@ -168,10 +153,16 @@ declaracoes_de_vars
 declaracao_de_funcoes_e_procendimentos
     ::=  /*vazio*/
     | {:
-          parser.rotulo++;
-          parser.mepa.append ("\tDSVS\tL"+parser.rotulo+"\n");
+        parser.rotulo++;
+        parser.mepa.append ("\tDSVS\tL"+parser.rotulo+"\n");
       :}
-      lista_de_declaracao_de_funcao_ou_procedimento S_PONTOVG
+    lista_de_declaracao_de_funcao_ou_procedimento S_PONTOVG
+    {:
+        parser.elemPilha = parser.pilhaSem.pollLast();
+        if(parser.elemPilha instanceof Procedimento){
+          parser.mepa.append ("L"+(((Procedimento)parser.elemPilha).getRotulo()-1)+":\tNADA\n");
+        }
+    :}
 ;
 
 lista_de_declaracao_de_funcao_ou_procedimento
@@ -184,24 +175,22 @@ lista_de_declaracao_de_funcao_ou_procedimento
 declaracao_de_funcao_ou_procedimento
     ::= {:
             parser.rotulo++;
-            parser.numeroEntradas = 0;
             parser.auxNumParam = 0;
-            parser.numProcedimentos++;
         :}
     declaracao_de_procedimento
         {:
-            parser.eliminaSimbolos(parser.numeroEntradas);
-            parser.elemPilha = parser.pilhaSem.pollLast();
+            /*parser.elemPilha = parser.pilhaSem.pollLast();
             if(parser.elemPilha instanceof Procedimento){
               parser.mepa.append ("L"+(((Procedimento)parser.elemPilha).getRotulo()-1)+":\tNADA\n");
-            }
-            parser.elemPilha = new EntradasTabSim(parser.numProcedimentos, parser.nivel);
-            parser.pilhaSem.add(parser.elemPilha);
+            }*/
         :}
 ;
 
 declaracao_de_procedimento
-    ::= {: parser.mepa.append ("L"+parser.rotulo+":\tENPR\t"+(parser.nivel+1)+"\n"); :}
+    ::= 
+    {: 
+        parser.mepa.append ("L"+parser.rotulo+":\tENPR\t"+(parser.nivel+1)+"\n"); 
+    :}
     cabecalho_procedimento S_PONTOVG
     bloco
     {:
@@ -212,7 +201,7 @@ declaracao_de_procedimento
 cabecalho_procedimento
     ::= S_PROCEDURE S_IDENTIF:id
     {:
-        int index;   
+        int index;  
         parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
         index = parser.tabSimbolo.indexOf(parser.elemTab);
         ElemTabSimb e;
@@ -271,6 +260,7 @@ lista_formal_de_parametros
     ::= S_ABREPAR 
     {:
         parser.nivel++;
+        parser.numeroEntradas = 0;
     :}
     secao_lista_de_parametros_formais 
     {:
