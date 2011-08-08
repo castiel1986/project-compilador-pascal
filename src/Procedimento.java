@@ -16,8 +16,16 @@ public class Procedimento implements InfoComplementar, ElemPilhaSem{
     private ArrayList<Parametro> parametros;
 
     public Procedimento(int rotulo) {
-        this.rotulo = rotulo;
         this.parametros = new ArrayList<Parametro>();
+        this.rotulo = rotulo;
+    }
+
+    public int getRotulo() {
+        return rotulo;
+    }
+
+    public void setRotulo(int rotulo) {
+        this.rotulo = rotulo;
     }
 
     public Parametro getParametro(int index){
@@ -28,12 +36,7 @@ public class Procedimento implements InfoComplementar, ElemPilhaSem{
         this.parametros.add(parametro);
     }
     
-    public int getRotulo() {
-        return rotulo;
+    public ArrayList<Parametro> getParametros() {
+        return parametros;
     }
-
-    public void setRotulo(int rotulo) {
-        this.rotulo = rotulo;
-    }
-
 }
