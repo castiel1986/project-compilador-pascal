@@ -120,11 +120,12 @@ start with programa;
 
 programa 
     ::=
-    {: parser.mepa.append ("\tINPP\n"); :}
+    {: 
+        parser.mepa.append ("\tINPP\n"); 
+    :}
     S_PROGRAM S_IDENTIF S_PONTOVG bloco S_PONTO
     {: 
-        parser.mostraPilhaSem();
-        parser.mepa.append ("\tPARA\n\tFIM\n");
+    parser.mepa.append ("\tPARA\n\tFIM\n");
     :}
 ;
 
@@ -136,12 +137,9 @@ bloco
     variaveis declaracao_de_funcoes_e_procendimentos
     corpo
     {:  
-        if(parser.pilhaSem.peekLast() instanceof EntradasTabSim){
-            EntradasTabSim ets = (EntradasTabSim) parser.pilhaSem.peekLast();
-            if(ets.getNivel() == parser.nivel){
-                parser.elemPilha = parser.pilhaSem.pollLast();
-                parser.mepa.append("\tDMEM\t"+((EntradasTabSim)parser.elemPilha).getNumEntradas()+"\n");
-            }
+        if(parser.pilhaSem.peekLast() instanceof VariaveisDeclaradas){
+            parser.elemPilha = parser.pilhaSem.pollLast();
+            parser.mepa.append("\tDMEM\t"+((VariaveisDeclaradas)parser.elemPilha).getQuantidade()+"\n");
         }
         parser.eliminaSimbolos(parser.nivel);
         parser.nivel--;
@@ -155,7 +153,7 @@ variaveis
     {:
         if(parser.contaVars > 0){
             parser.mepa.append ("\tAMEM\t"+parser.contaVars+"\n");
-            parser.elemPilha = new EntradasTabSim(parser.contaVars, parser.nivel);
+            parser.elemPilha = new VariaveisDeclaradas(parser.contaVars);
             parser.pilhaSem.add(parser.elemPilha);
         }
     :}
@@ -487,7 +485,6 @@ chamada_procedimento
         {:
             parser.pre_rotina = 0;
             parser.numeroArgumentos = 0;
-            parser.mostraPilhaSem();
             parser.elemTab = (ElemTabSimb) parser.pilhaSem.pollLast();
             Procedimento proc = (Procedimento) parser.elemTab.getInfoC();
             parser.mepa.append ("\tCHPR\t"+"L"+proc.getRotulo()+"\n");
