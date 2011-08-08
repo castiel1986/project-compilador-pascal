@@ -71,6 +71,21 @@ parser code  {:
         System.out.println("PilhaSemantica - "+pilhaSem.toString()+"\n");
     }
 
+    public ElemTabSimb buscaSimbolo(String id){
+        int tamanhoTab = this.tabSimbolo.size() - 1;
+        ElemTabSimb e = null;
+
+        while(tamanhoTab != -1 && !((e = tabSimbolo.get(tamanhoTab)).getNome().equals(id))){
+            tamanhoTab--;
+        }
+
+        if(tamanhoTab == -1){
+            return null;
+        }
+  
+        return e;
+    }
+
 :};
 
 terminal 
@@ -108,6 +123,7 @@ programa
     {: parser.mepa.append ("\tINPP\n"); :}
     S_PROGRAM S_IDENTIF S_PONTOVG bloco S_PONTO
     {: 
+        parser.mostraPilhaSem();
         parser.mepa.append ("\tPARA\n\tFIM\n");
     :}
 ;
@@ -155,12 +171,13 @@ declaracao_de_funcoes_e_procendimentos
     | {:
         parser.rotulo++;
         parser.mepa.append ("\tDSVS\tL"+parser.rotulo+"\n");
+        parser.pilhaSem.add(new Rotulo(parser.rotulo));
       :}
     lista_de_declaracao_de_funcao_ou_procedimento S_PONTOVG
     {:
         parser.elemPilha = parser.pilhaSem.pollLast();
-        if(parser.elemPilha instanceof Procedimento){
-          parser.mepa.append ("L"+(((Procedimento)parser.elemPilha).getRotulo()-1)+":\tNADA\n");
+        if(parser.elemPilha instanceof Rotulo){
+          parser.mepa.append ("L"+((Rotulo)parser.elemPilha).getRotulo()+":\tNADA\n");
         }
     :}
 ;
@@ -178,12 +195,6 @@ declaracao_de_funcao_ou_procedimento
             parser.auxNumParam = 0;
         :}
     declaracao_de_procedimento
-        {:
-            /*parser.elemPilha = parser.pilhaSem.pollLast();
-            if(parser.elemPilha instanceof Procedimento){
-              parser.mepa.append ("L"+(((Procedimento)parser.elemPilha).getRotulo()-1)+":\tNADA\n");
-            }*/
-        :}
 ;
 
 declaracao_de_procedimento
@@ -223,18 +234,12 @@ cabecalho_procedimento
     :}
     | S_PROCEDURE S_IDENTIF:id
     {:
-        int index;   
         parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
-        index = parser.tabSimbolo.indexOf(parser.elemTab);
-        ElemTabSimb e;
-        if(index != -1){
-            e = parser.tabSimbolo.get(index);
-            if(parser.tabSimbolo.contains(parser.elemTab) && e.getNivel() == parser.nivel){
-                parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
-            }else{
-                parser.tabSimbolo.add(parser.elemTab);
-            }
+        Procedimento proc = new Procedimento(parser.rotulo);
+        if(parser.tabSimbolo.contains(parser.elemTab)){
+            parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
         }else{
+            parser.elemTab.setInfoC(proc);
             parser.tabSimbolo.add(parser.elemTab);
         }
     :}
@@ -250,7 +255,6 @@ cabecalho_procedimento
                 it.remove();
             }
             parser.elemTab.setInfoC(proc);
-            parser.pilhaSem.add(proc);
         }
     :}
 
@@ -355,16 +359,6 @@ parametro_por_referencia
 lista_de_parametros
     ::= lista_de_parametros S_VIRGULA S_IDENTIF:id
     {:
-        /*parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
-        if(parser.tabSimbolo.contains(parser.elemTab)){
-            parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
-        }else{
-            parser.numeroEntradas++;
-            parser.elemTab.setInfoC(new Parametro());
-            parser.tabSimbolo.add(parser.elemTab);
-            parser.pilhaSem.add(parser.elemTab);
-        }*/
-
         int index;   
         parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
         index = parser.tabSimbolo.indexOf(parser.elemTab);
@@ -470,11 +464,6 @@ comando_sem_rotulo
     | chamada_comando_escrita
     | chamada_comando_leitura
     | chamada_procedimento
-        {:
-            parser.elemTab = (ElemTabSimb) parser.pilhaSem.pollLast();
-            Procedimento proc = (Procedimento) parser.elemTab.getInfoC();
-            parser.mepa.append ("\tCHPR\t"+"L"+proc.getRotulo()+"\n");
-        :}
     | atribuicao
     | composto
     | condicional
@@ -484,12 +473,10 @@ comando_sem_rotulo
 chamada_procedimento
     ::= S_IDENTIF:id
         {:
-            parser.elemTab = new ElemTabSimb(id.toString());
-            if(!parser.tabSimbolo.contains(parser.elemTab)){
+            parser.elemTab = parser.buscaSimbolo(id.toString());
+            if(parser.elemTab == null){
                 parser.report_semantic_error ("Procedimento <"+id+"> não declarado!");
             }else{
-                int index = parser.tabSimbolo.indexOf(parser.elemTab);
-                parser.elemTab = parser.tabSimbolo.get(index);
                 parser.pilhaSem.add(parser.elemTab);
                 parser.pre_rotina = 1;
                 parser.numeroArgumentos = 0;
@@ -500,17 +487,21 @@ chamada_procedimento
         {:
             parser.pre_rotina = 0;
             parser.numeroArgumentos = 0;
+            parser.mostraPilhaSem();
+            parser.elemTab = (ElemTabSimb) parser.pilhaSem.pollLast();
+            Procedimento proc = (Procedimento) parser.elemTab.getInfoC();
+            parser.mepa.append ("\tCHPR\t"+"L"+proc.getRotulo()+"\n");
         :}
 
     | S_IDENTIF:id
         {:
-            parser.elemTab = new ElemTabSimb(id.toString()); 
-            if(!parser.tabSimbolo.contains(parser.elemTab)){
+            parser.elemTab = parser.buscaSimbolo(id.toString());
+            if(parser.elemTab == null){
                 parser.report_semantic_error ("Procedimento <"+id+"> não declarado!");
             }else{
-                int index = parser.tabSimbolo.indexOf(parser.elemTab);
-                parser.elemTab = parser.tabSimbolo.get(index);
                 parser.pilhaSem.add(parser.elemTab);
+                parser.pre_rotina = 1;
+                parser.numeroArgumentos = 0;
             }
         :}
 ;
@@ -587,30 +578,25 @@ lista_de_variaveis
 atribuicao
       ::= S_IDENTIF:id
           {:
-             parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
-             if(!parser.tabSimbolo.contains(parser.elemTab)){
+            parser.elemTab = parser.buscaSimbolo(id.toString());
+            if(parser.elemTab == null){
                 parser.report_semantic_error ("Identificador <"+id+"> não declarado!");
-             }
-             else{
-                parser.elemTab = parser.tabSimbolo.get(parser.tabSimbolo.indexOf(parser.elemTab));
-                if (parser.elemTab.getInfoC() instanceof Variavel) {
-                    parser.pilhaSem.add((Variavel) parser.elemTab.getInfoC());
-                }else{
-                    parser.pilhaSem.add((Parametro) parser.elemTab.getInfoC());
-                }
-             }
+            }else{
+                parser.pilhaSem.add(parser.elemTab);
+            }
           :}
         S_ATRIBUI expressao
           {:
-             parser.elemPilha = parser.pilhaSem.pollLast();
-             if(parser.elemPilha instanceof Parametro){
-                if(((Parametro)parser.elemPilha).getMec() == Mecanismo.PAS_END){
-                    parser.mepa.append ("\tARMI\t"+ parser.elemTab.getNivel()+","+((Parametro)parser.elemPilha).getDeslocamento()+"\n");
+             parser.elemTab = (ElemTabSimb) parser.pilhaSem.pollLast();
+             InfoComplementar infoC = parser.elemTab.getInfoC();
+             if( infoC instanceof Parametro){
+                if(((Parametro)infoC).getMec() == Mecanismo.PAS_END){
+                    parser.mepa.append ("\tARMI\t"+ parser.elemTab.getNivel()+","+((Parametro)infoC).getDeslocamento()+"\n");
                 }else{
-                    parser.mepa.append ("\tARMZ\t"+ parser.elemTab.getNivel()+","+((Parametro)parser.elemPilha).getDeslocamento()+"\n");
+                    parser.mepa.append ("\tARMZ\t"+ parser.elemTab.getNivel()+","+((Parametro)infoC).getDeslocamento()+"\n");
                 }
              }else{
-                parser.mepa.append ("\tARMZ\t"+((Variavel)parser.elemPilha).getDeslocamento()+"\n");
+                parser.mepa.append ("\tARMZ\t"+parser.elemTab.getNivel()+","+((Variavel)infoC).getDeslocamento()+"\n");
              }
              
           :}
@@ -735,12 +721,12 @@ fator
     ::=
     S_IDENTIF:id
     {:
-        parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
-        if(!parser.tabSimbolo.contains(parser.elemTab)){
+        parser.elemTab = parser.buscaSimbolo(id.toString());
+
+        if(parser.elemTab == null){
             parser.report_semantic_error ("Identificador <"+id+"> não declarado!");
         }
         else{
-            parser.elemTab = parser.tabSimbolo.get(parser.tabSimbolo.indexOf(parser.elemTab));
             if(parser.pre_rotina == 1){
                 Procedimento proc = (Procedimento) ((ElemTabSimb) parser.pilhaSem.peekLast()).getInfoC();
                 Parametro p = proc.getParametro(parser.numeroArgumentos);

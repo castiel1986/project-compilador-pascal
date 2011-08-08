@@ -66,6 +66,9 @@ public class ElemTabSimb implements ElemPilhaSem{
         if ((this.nome == null) ? (other.nome != null) : !this.nome.equals(other.nome)) {
             return false;
         }
+        if (this.nivel != other.nivel) {
+            return false;
+        }
         return true;
     }
 
