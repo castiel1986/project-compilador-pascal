@@ -22,7 +22,7 @@ public class TestePilhaSem {
 
         ArrayList<ElemTabSimb> el = new ArrayList<ElemTabSimb>();
         ElemTabSimb et = new ElemTabSimb("x", 1);
-
+        
         el.add(et);
 
         et = new ElemTabSimb("x", 7);
