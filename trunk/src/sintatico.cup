@@ -210,24 +210,13 @@ declaracao_de_procedimento
 cabecalho_procedimento
     ::= S_PROCEDURE S_IDENTIF:id
     {:
-        int index;  
         parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
-        index = parser.tabSimbolo.indexOf(parser.elemTab);
-        ElemTabSimb e;
         Procedimento proc = new Procedimento(parser.rotulo);
-        if(index != -1){
-            e = parser.tabSimbolo.get(index);
-            if(parser.tabSimbolo.contains(parser.elemTab) && e.getNivel() == parser.nivel){
-                parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
-            }else{
-                parser.elemTab.setInfoC(proc);
-                parser.tabSimbolo.add(parser.elemTab);
-                parser.pilhaSem.add(proc);
-            }
+        if(parser.tabSimbolo.contains(parser.elemTab)){
+            parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
         }else{
             parser.elemTab.setInfoC(proc);
             parser.tabSimbolo.add(parser.elemTab);
-            parser.pilhaSem.add(proc);
         }
     :}
     | S_PROCEDURE S_IDENTIF:id
@@ -300,105 +289,83 @@ secao_de_parametros_formais
 
 parametro_por_valor
     ::= lista_de_parametros S_DOISPTOS S_IDENTIF
-        {:
-            //auxNumParam - Controlar o numero de parametros
-            parser.auxNumParam = parser.numeroEntradas - parser.auxNumParam;
-            Parametro p;
-            LinkedList <Parametro> param = new LinkedList<Parametro>();
-            
-            int i;
-            //Retirar da pilha semântica e setar o tipo de macanismo e tipo do parametro
-            //Usar uma pilha auxiliar
-            for( i = parser.auxNumParam; i > 0; i--){
-                parser.elemTab = (ElemTabSimb) parser.pilhaSem.pollLast();               
-                p = (Parametro) parser.elemTab.getInfoC();
-                p.setMec(Mecanismo.PAS_VAL);
-                p.setTipo(Tipo.INTEGER);
-                param.add(p);
-            }
-            
-            //Adicionar os parametros novamente
-            for( i = parser.auxNumParam; i > 0; i--){
-                parser.pilhaSem.add(param.pollLast());
-            }
-            
-            parser.auxNumParam = parser.numeroEntradas;
-        :}
+    {:
+        //auxNumParam - Controlar o numero de parametros
+        parser.auxNumParam = parser.numeroEntradas - parser.auxNumParam;
+        Parametro p;
+        LinkedList <Parametro> param = new LinkedList<Parametro>();
+
+        int i;
+        //Retirar da pilha semântica e setar o tipo de macanismo e tipo do parametro
+        //Usar uma pilha auxiliar
+        for( i = parser.auxNumParam; i > 0; i--){
+            parser.elemTab = (ElemTabSimb) parser.pilhaSem.pollLast();               
+            p = (Parametro) parser.elemTab.getInfoC();
+            p.setMec(Mecanismo.PAS_VAL);
+            p.setTipo(Tipo.INTEGER);
+            param.add(p);
+        }
+
+        //Adicionar os parametros novamente
+        for( i = parser.auxNumParam; i > 0; i--){
+            parser.pilhaSem.add(param.pollLast());
+        }
+
+        parser.auxNumParam = parser.numeroEntradas;
+    :}
 ;
 
 parametro_por_referencia
     ::= S_VAR lista_de_parametros S_DOISPTOS S_IDENTIF
-        {:
-            //auxNumParam - Controlar o numero de parametros
-            parser.auxNumParam = parser.numeroEntradas - parser.auxNumParam;
-            Parametro p;
-            LinkedList <Parametro> param = new LinkedList<Parametro>();
-            
-            int i;
-            //Retirar da pilha semântica e setar o tipo de macanismo e tipo do parametro
-            //Usar uma pilha auxiliar
-            for( i = parser.auxNumParam; i > 0; i--){
-                parser.elemTab = (ElemTabSimb) parser.pilhaSem.pollLast();               
-                p = (Parametro) parser.elemTab.getInfoC();
-                p.setMec(Mecanismo.PAS_END);
-                p.setTipo(Tipo.INTEGER);
-                param.add(p);
-            }
-            
-            //Adicionar os parametros novamente
-            for( i = parser.auxNumParam; i > 0; i--){
-                parser.pilhaSem.add(param.pollLast());
-            }
+    {:
+        //auxNumParam - Controlar o numero de parametros
+        parser.auxNumParam = parser.numeroEntradas - parser.auxNumParam;
+        Parametro p;
+        LinkedList <Parametro> param = new LinkedList<Parametro>();
 
-            parser.auxNumParam = parser.numeroEntradas;
-        :}
+        int i;
+        //Retirar da pilha semântica e setar o tipo de macanismo e tipo do parametro
+        //Usar uma pilha auxiliar
+        for( i = parser.auxNumParam; i > 0; i--){
+            parser.elemTab = (ElemTabSimb) parser.pilhaSem.pollLast();               
+            p = (Parametro) parser.elemTab.getInfoC();
+            p.setMec(Mecanismo.PAS_END);
+            p.setTipo(Tipo.INTEGER);
+            param.add(p);
+        }
+
+        //Adicionar os parametros novamente
+        for( i = parser.auxNumParam; i > 0; i--){
+            parser.pilhaSem.add(param.pollLast());
+        }
+
+        parser.auxNumParam = parser.numeroEntradas;
+    :}
 ;
 
 lista_de_parametros
     ::= lista_de_parametros S_VIRGULA S_IDENTIF:id
     {:
-        int index;   
         parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
-        index = parser.tabSimbolo.indexOf(parser.elemTab);
-        ElemTabSimb e;
-        if(index != -1){
-            e = parser.tabSimbolo.get(index);
-            if(parser.tabSimbolo.contains(parser.elemTab) && e.getNivel() == parser.nivel){
-                parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
-            }else{
-                parser.numeroEntradas++;
-                parser.elemTab.setInfoC(new Parametro());
-                parser.tabSimbolo.add(parser.elemTab);
-                parser.pilhaSem.add(parser.elemTab);
-            }
+        if(parser.tabSimbolo.contains(parser.elemTab)){
+            parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
         }else{
-                parser.numeroEntradas++;
-                parser.elemTab.setInfoC(new Parametro());
-                parser.tabSimbolo.add(parser.elemTab);
-                parser.pilhaSem.add(parser.elemTab);
+            parser.numeroEntradas++;
+            parser.elemTab.setInfoC(new Parametro());
+            parser.tabSimbolo.add(parser.elemTab);
+            parser.pilhaSem.add(parser.elemTab);
         }
     :}
     | S_IDENTIF:id
     {:
-        int index;   
         parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
-        index = parser.tabSimbolo.indexOf(parser.elemTab);
-        ElemTabSimb e;
-        if(index != -1){
-            e = parser.tabSimbolo.get(index);
-            if(parser.tabSimbolo.contains(parser.elemTab) && e.getNivel() == parser.nivel){
-                parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
-            }else{
-                parser.numeroEntradas++;
-                parser.elemTab.setInfoC(new Parametro());
-                parser.tabSimbolo.add(parser.elemTab);
-                parser.pilhaSem.add(parser.elemTab);
-            }
+        if(parser.tabSimbolo.contains(parser.elemTab)){
+            parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
         }else{
-                parser.numeroEntradas++;
-                parser.elemTab.setInfoC(new Parametro());
-                parser.tabSimbolo.add(parser.elemTab);
-                parser.pilhaSem.add(parser.elemTab);
+            parser.numeroEntradas++;
+            parser.elemTab.setInfoC(new Parametro());
+            parser.tabSimbolo.add(parser.elemTab);
+            parser.pilhaSem.add(parser.elemTab);
         }
     :}
 ;
@@ -406,19 +373,9 @@ lista_de_parametros
 lista_de_identificadores
     ::= lista_de_identificadores S_VIRGULA S_IDENTIF:id
     {:
-        int index;   
         parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
-        index = parser.tabSimbolo.indexOf(parser.elemTab);
-        ElemTabSimb e;
-        if(index != -1){
-            e = parser.tabSimbolo.get(index);
-            if(parser.tabSimbolo.contains(parser.elemTab) && e.getNivel() == parser.nivel){
-                parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
-            }else{
-                parser.elemTab.setInfoC(new Variavel(parser.contaVars));
-                parser.tabSimbolo.add(parser.elemTab);
-                parser.contaVars++;
-            }
+        if(parser.tabSimbolo.contains(parser.elemTab)){
+            parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
         }else{
             parser.elemTab.setInfoC(new Variavel(parser.contaVars));
             parser.tabSimbolo.add(parser.elemTab);
@@ -427,19 +384,9 @@ lista_de_identificadores
     :}
     | S_IDENTIF:id
     {:
-        int index;   
         parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
-        index = parser.tabSimbolo.indexOf(parser.elemTab);
-        ElemTabSimb e;
-        if(index != -1){
-            e = parser.tabSimbolo.get(index);
-            if(parser.tabSimbolo.contains(parser.elemTab) && e.getNivel() == parser.nivel){
-                parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
-            }else{
-                parser.elemTab.setInfoC(new Variavel(parser.contaVars));
-                parser.tabSimbolo.add(parser.elemTab);
-                parser.contaVars++;
-            }
+        if(parser.tabSimbolo.contains(parser.elemTab)){
+            parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
         }else{
             parser.elemTab.setInfoC(new Variavel(parser.contaVars));
             parser.tabSimbolo.add(parser.elemTab);
@@ -449,19 +396,26 @@ lista_de_identificadores
 ;
 
 corpo
-      ::= S_BEGIN sequencia_comandos S_END
-      ;
+    ::= S_BEGIN sequencia_comandos S_END
+;
 
 sequencia_comandos
-      ::= sequencia_comandos S_PONTOVG comando_sem_rotulo
-      | comando_sem_rotulo
-      ;
+    ::= sequencia_comandos S_PONTOVG comando_sem_rotulo
+    | comando_sem_rotulo
+;
 
 comando_sem_rotulo
     ::=  /* vazio */
     | chamada_comando_escrita
     | chamada_comando_leitura
     | chamada_procedimento
+        {:
+            parser.pre_rotina = 0;
+            parser.numeroArgumentos = 0;
+            parser.elemTab = (ElemTabSimb) parser.pilhaSem.pollLast();
+            Procedimento proc = (Procedimento) parser.elemTab.getInfoC();
+            parser.mepa.append ("\tCHPR\t"+"L"+proc.getRotulo()+"\n");
+        :}
     | atribuicao
     | composto
     | condicional
@@ -470,37 +424,28 @@ comando_sem_rotulo
 
 chamada_procedimento
     ::= S_IDENTIF:id
-        {:
-            parser.elemTab = parser.buscaSimbolo(id.toString());
-            if(parser.elemTab == null){
-                parser.report_semantic_error ("Procedimento <"+id+"> não declarado!");
-            }else{
-                parser.pilhaSem.add(parser.elemTab);
-                parser.pre_rotina = 1;
-                parser.numeroArgumentos = 0;
-            }
-        :}
-
-    parametros
-        {:
-            parser.pre_rotina = 0;
+    {:
+        parser.elemTab = parser.buscaSimbolo(id.toString());
+        if(parser.elemTab == null){
+            parser.report_semantic_error ("Procedimento <"+id+"> não declarado!");
+        }else{
+            parser.pilhaSem.add(parser.elemTab);
+            parser.pre_rotina = 1;
             parser.numeroArgumentos = 0;
-            parser.elemTab = (ElemTabSimb) parser.pilhaSem.pollLast();
-            Procedimento proc = (Procedimento) parser.elemTab.getInfoC();
-            parser.mepa.append ("\tCHPR\t"+"L"+proc.getRotulo()+"\n");
-        :}
-
+        }
+    :}
+    parametros
     | S_IDENTIF:id
-        {:
-            parser.elemTab = parser.buscaSimbolo(id.toString());
-            if(parser.elemTab == null){
-                parser.report_semantic_error ("Procedimento <"+id+"> não declarado!");
-            }else{
-                parser.pilhaSem.add(parser.elemTab);
-                parser.pre_rotina = 1;
-                parser.numeroArgumentos = 0;
-            }
-        :}
+    {:
+        parser.elemTab = parser.buscaSimbolo(id.toString());
+        if(parser.elemTab == null){
+            parser.report_semantic_error ("Procedimento <"+id+"> não declarado!");
+        }else{
+            parser.pilhaSem.add(parser.elemTab);
+            parser.pre_rotina = 1;
+            parser.numeroArgumentos = 0;
+        }
+    :}
 ;
 
 parametros
@@ -519,207 +464,204 @@ parametros_atuais
 ;
 
 chamada_comando_escrita
-      ::= S_WRITE
-        S_ABREPAR lista_de_expressoes S_FECHAPAR
-      ;
+    ::= S_WRITE
+    S_ABREPAR lista_de_expressoes S_FECHAPAR
+;
 
 chamada_comando_leitura
-      ::= S_READ
-        S_ABREPAR lista_de_variaveis S_FECHAPAR
-      ;
+    ::= S_READ
+    S_ABREPAR lista_de_variaveis S_FECHAPAR
+;
 
 lista_de_expressoes
-      ::=  /* vazio */
-      | lista_de_expressoes S_VIRGULA
-        expressao
-          {: parser.mepa.append ("\tIMPR\n"); :}
-      |
-        expressao
-          {: parser.mepa.append ("\tIMPR\n"); :}
-      ;
+    ::=  /* vazio */
+    | lista_de_expressoes S_VIRGULA
+    expressao
+    {: 
+        parser.mepa.append ("\tIMPR\n"); 
+    :}
+    |
+    expressao
+    {: 
+        parser.mepa.append ("\tIMPR\n"); 
+    :}
+;
 
 lista_de_variaveis
-      ::=  /* vazio */
-      | lista_de_variaveis S_VIRGULA
-        S_IDENTIF:id
-          {:
-             parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
-             //Obs: Referir a variavel com nivel inferior
-             if(!parser.tabSimbolo.contains(parser.elemTab)){
-                parser.report_semantic_error ("Identificador <"+id+"> não declarado!");
-             }
-             else {
-                parser.elemTab = parser.tabSimbolo.get(parser.tabSimbolo.indexOf(parser.elemTab));
-                parser.mepa.append ("\tLEIT\n");
-                parser.mepa.append ("\tARMZ\t"+parser.elemTab.getNivel()+","+((Variavel)parser.elemTab.getInfoC()).getDeslocamento()+"\n");
-             }
-          :}
+    ::=  /* vazio */
+    | lista_de_variaveis S_VIRGULA
+    S_IDENTIF:id
+    {:
+        parser.elemTab = parser.buscaSimbolo(id.toString());
+        if(parser.elemTab == null){
+            parser.report_semantic_error ("Identificador <"+id+"> não declarado!");
+        }
+        else {
+            parser.mepa.append ("\tLEIT\n");
+            parser.mepa.append ("\tARMZ\t"+parser.elemTab.getNivel()+","+((Variavel)parser.elemTab.getInfoC()).getDeslocamento()+"\n");
+        }
+    :}
 
-      |
-        S_IDENTIF:id
-          {:
-             parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
-             // Obs: Referir a variavel com nivel inferior
-             if(!parser.tabSimbolo.contains(parser.elemTab)){
-                parser.report_semantic_error ("Identificador <"+id+"> não declarado!");
-             }
-             else {
-                parser.elemTab = parser.tabSimbolo.get(parser.tabSimbolo.indexOf(parser.elemTab));
-                parser.mepa.append ("\tLEIT\n");
-                parser.mepa.append ("\tARMZ\t"+parser.elemTab.getNivel()+","+((Variavel)parser.elemTab.getInfoC()).getDeslocamento()+"\n");
-             }
-          :}
+    |
+    S_IDENTIF:id
+    {:
+        parser.elemTab = parser.buscaSimbolo(id.toString());
+        if(parser.elemTab == null){
+            parser.report_semantic_error ("Identificador <"+id+"> não declarado!");
+        }
+        else{
+            parser.mepa.append ("\tLEIT\n");
+            parser.mepa.append ("\tARMZ\t"+parser.elemTab.getNivel()+","+((Variavel)parser.elemTab.getInfoC()).getDeslocamento()+"\n");
+        }
+    :}
 
-      ;
+;
 
 atribuicao
-      ::= S_IDENTIF:id
-          {:
-            parser.elemTab = parser.buscaSimbolo(id.toString());
-            if(parser.elemTab == null){
-                parser.report_semantic_error ("Identificador <"+id+"> não declarado!");
+    ::= S_IDENTIF:id
+    {:
+        parser.elemTab = parser.buscaSimbolo(id.toString());
+        if(parser.elemTab == null){
+            parser.report_semantic_error ("Identificador <"+id+"> não declarado!");
+        }else{
+            parser.pilhaSem.add(parser.elemTab);
+        }
+    :}
+    S_ATRIBUI expressao
+    {:
+        parser.elemTab = (ElemTabSimb) parser.pilhaSem.pollLast();
+        InfoComplementar infoC = parser.elemTab.getInfoC();
+        if( infoC instanceof Parametro){
+            if(((Parametro)infoC).getMec() == Mecanismo.PAS_END){
+                parser.mepa.append ("\tARMI\t"+ parser.elemTab.getNivel()+","+((Parametro)infoC).getDeslocamento()+"\n");
             }else{
-                parser.pilhaSem.add(parser.elemTab);
+                parser.mepa.append ("\tARMZ\t"+ parser.elemTab.getNivel()+","+((Parametro)infoC).getDeslocamento()+"\n");
             }
-          :}
-        S_ATRIBUI expressao
-          {:
-             parser.elemTab = (ElemTabSimb) parser.pilhaSem.pollLast();
-             InfoComplementar infoC = parser.elemTab.getInfoC();
-             if( infoC instanceof Parametro){
-                if(((Parametro)infoC).getMec() == Mecanismo.PAS_END){
-                    parser.mepa.append ("\tARMI\t"+ parser.elemTab.getNivel()+","+((Parametro)infoC).getDeslocamento()+"\n");
-                }else{
-                    parser.mepa.append ("\tARMZ\t"+ parser.elemTab.getNivel()+","+((Parametro)infoC).getDeslocamento()+"\n");
-                }
-             }else{
-                parser.mepa.append ("\tARMZ\t"+parser.elemTab.getNivel()+","+((Variavel)infoC).getDeslocamento()+"\n");
-             }
-             
-          :}
-      ;
+        }else{
+            parser.mepa.append ("\tARMZ\t"+parser.elemTab.getNivel()+","+((Variavel)infoC).getDeslocamento()+"\n");
+        }
+    :}
+;
 
 composto
-      ::= S_BEGIN lista_comandos_sem_rotulo S_END
-      ;
+    ::= S_BEGIN lista_comandos_sem_rotulo S_END
+;
 
 lista_comandos_sem_rotulo
-      ::= lista_comandos_sem_rotulo S_PONTOVG comando_sem_rotulo
-      | comando_sem_rotulo
-      ;
+    ::= lista_comandos_sem_rotulo S_PONTOVG comando_sem_rotulo
+    | comando_sem_rotulo
+;
 
 condicional
-      ::= S_IF
-        expressao
-          {:
-             parser.rotulo++;
-             parser.mepa.append ("\tDSVF\tL"+parser.rotulo+"\n");
-             parser.pilhaSem.add (new Rotulo(parser.rotulo));
-          :}
-        S_THEN
-        comando_sem_rotulo
-        alternativa_cond
-          {:
-             parser.elemPilha = parser.pilhaSem.removeLast();
-             parser.mepa.append ("L"+((Rotulo)parser.elemPilha).getRotulo()+":\tNADA\n");
-          :}
-      ;
+    ::= S_IF
+    expressao
+    {:
+        parser.rotulo++;
+        parser.mepa.append ("\tDSVF\tL"+parser.rotulo+"\n");
+        parser.pilhaSem.add (new Rotulo(parser.rotulo));
+    :}
+    S_THEN
+    comando_sem_rotulo
+    alternativa_cond
+    {:
+        parser.elemPilha = parser.pilhaSem.pollLast();
+        parser.mepa.append ("L"+((Rotulo)parser.elemPilha).getRotulo()+":\tNADA\n");
+    :}
+;
 
 alternativa_cond
-      ::= /* vazio */
-      | S_ELSE
-          {:
-             parser.rotulo++;
-             parser.mepa.append ("\tDSVS\tL"+parser.rotulo+"\n");
-             parser.elemPilha = parser.pilhaSem.removeLast();
-             parser.mepa.append ("L"+((Rotulo)parser.elemPilha).getRotulo()+":\tNADA\n");
-             parser.pilhaSem.add (new Rotulo(parser.rotulo));
-          :}
-        comando_sem_rotulo
-      ;
+    ::= /* vazio */
+    | S_ELSE
+    {:
+        parser.rotulo++;
+        parser.mepa.append ("\tDSVS\tL"+parser.rotulo+"\n");
+        parser.elemPilha = parser.pilhaSem.pollLast();
+        parser.mepa.append ("L"+((Rotulo)parser.elemPilha).getRotulo()+":\tNADA\n");
+        parser.pilhaSem.add (new Rotulo(parser.rotulo));
+    :}
+    comando_sem_rotulo
+;
 
 repetitivo
-      ::= S_WHILE
-          {:
-             parser.rotulo++;
-             parser.mepa.append ("L"+parser.rotulo+":\tNADA\n");
-             parser.pilhaSem.add (new Rotulo(parser.rotulo));
-          :}
-        expressao
-          {:
-             parser.rotulo++;
-             parser.mepa.append ("\tDSVF\tL"+parser.rotulo+"\n");
-             parser.pilhaSem.add (new Rotulo(parser.rotulo));
-          :}
-        S_DO comando_sem_rotulo
-          {:
-
-             parser.ultimoRotulo = (Rotulo) parser.pilhaSem.removeLast();
-             parser.elemPilha = parser.pilhaSem.removeLast();
-             parser.mepa.append ("\tDSVS\tL"+((Rotulo)parser.elemPilha).getRotulo()+"\n");
-             parser.mepa.append ("L"+parser.ultimoRotulo.getRotulo()+":\tNADA\n");
-          :}
-      |
-        S_REPEAT
-          {:
-             parser.rotulo++;
-             parser.mepa.append ("L"+parser.rotulo+":\tNADA\n");
-             parser.pilhaSem.add (new Rotulo(parser.rotulo));
-          :}
-        sequencia_comandos
-        S_UNTIL
-        expressao
-          {:
-             parser.ultimoRotulo = (Rotulo) parser.pilhaSem.removeLast();
-             parser.mepa.append ("\tDSVF\tL"+parser.ultimoRotulo.getRotulo()+"\n");
-          :}
-      ;
+    ::= S_WHILE
+    {:
+        parser.rotulo++;
+        parser.mepa.append ("L"+parser.rotulo+":\tNADA\n");
+        parser.pilhaSem.add (new Rotulo(parser.rotulo));
+    :}
+    expressao
+    {:
+        parser.rotulo++;
+        parser.mepa.append ("\tDSVF\tL"+parser.rotulo+"\n");
+        parser.pilhaSem.add (new Rotulo(parser.rotulo));
+    :}
+    S_DO comando_sem_rotulo
+    {:
+        parser.ultimoRotulo = (Rotulo) parser.pilhaSem.pollLast();
+        parser.elemPilha = parser.pilhaSem.pollLast();
+        parser.mepa.append ("\tDSVS\tL"+((Rotulo)parser.elemPilha).getRotulo()+"\n");
+        parser.mepa.append ("L"+parser.ultimoRotulo.getRotulo()+":\tNADA\n");
+    :}
+    |
+    S_REPEAT
+    {:
+        parser.rotulo++;
+        parser.mepa.append ("L"+parser.rotulo+":\tNADA\n");
+        parser.pilhaSem.add (new Rotulo(parser.rotulo));
+    :}
+    sequencia_comandos
+    S_UNTIL
+    expressao
+    {:
+        parser.ultimoRotulo = (Rotulo) parser.pilhaSem.pollLast();
+        parser.mepa.append ("\tDSVF\tL"+parser.ultimoRotulo.getRotulo()+"\n");
+    :}
+;
 
 expressao
-      ::= expressao_simples S_IGUAL   expressao_simples
-          {: parser.mepa.append ("\tCMIG\n"); :}
-      | expressao_simples S_DIFERENTE expressao_simples
-          {: parser.mepa.append ("\tCMDG\n"); :}
-      | expressao_simples S_MENOR     expressao_simples
-          {: parser.mepa.append ("\tCMME\n"); :}
-      | expressao_simples S_MAIOR     expressao_simples
-          {: parser.mepa.append ("\tCMMA\n"); :}
-      | expressao_simples S_MEIGUAL   expressao_simples
-          {: parser.mepa.append ("\tCMEG\n"); :}
-      | expressao_simples S_MAIGUAL   expressao_simples
-          {: parser.mepa.append ("\tCMAG\n"); :}
-      | expressao_simples
-      ;
+    ::= expressao_simples S_IGUAL   expressao_simples
+      {: parser.mepa.append ("\tCMIG\n"); :}
+    | expressao_simples S_DIFERENTE expressao_simples
+      {: parser.mepa.append ("\tCMDG\n"); :}
+    | expressao_simples S_MENOR     expressao_simples
+      {: parser.mepa.append ("\tCMME\n"); :}
+    | expressao_simples S_MAIOR     expressao_simples
+      {: parser.mepa.append ("\tCMMA\n"); :}
+    | expressao_simples S_MEIGUAL   expressao_simples
+      {: parser.mepa.append ("\tCMEG\n"); :}
+    | expressao_simples S_MAIGUAL   expressao_simples
+      {: parser.mepa.append ("\tCMAG\n"); :}
+    | expressao_simples
+;
 
 expressao_simples
-      ::= expressao_simples S_MAIS  termo
-          {: parser.mepa.append ("\tSOMA\n"); :}
-      | expressao_simples S_MENOS termo
-          {: parser.mepa.append ("\tSUBT\n"); :}
-      | expressao_simples S_OR    termo
-          {: parser.mepa.append ("\tDISJ\n"); :}
-      | S_MAIS termo
-      | S_MENOS termo
-          {: parser.mepa.append ("\tINVR\n"); :}
-      | termo
-      ;
+    ::= expressao_simples S_MAIS  termo
+      {: parser.mepa.append ("\tSOMA\n"); :}
+    | expressao_simples S_MENOS termo
+      {: parser.mepa.append ("\tSUBT\n"); :}
+    | expressao_simples S_OR    termo
+      {: parser.mepa.append ("\tDISJ\n"); :}
+    | S_MAIS termo
+    | S_MENOS termo
+      {: parser.mepa.append ("\tINVR\n"); :}
+    | termo
+;
 
 termo
-      ::= termo S_VEZES fator
-          {: parser.mepa.append ("\tMULT\n"); :}
-      | termo S_DIV fator
-          {: parser.mepa.append ("\tDIVI\n"); :}
-      | termo S_AND fator
-          {: parser.mepa.append ("\tCONJ\n"); :}
-      | fator
-      ;
+    ::= termo S_VEZES fator
+      {: parser.mepa.append ("\tMULT\n"); :}
+    | termo S_DIV fator
+      {: parser.mepa.append ("\tDIVI\n"); :}
+    | termo S_AND fator
+      {: parser.mepa.append ("\tCONJ\n"); :}
+    | fator
+;
 
 fator
     ::=
     S_IDENTIF:id
     {:
         parser.elemTab = parser.buscaSimbolo(id.toString());
-
         if(parser.elemTab == null){
             parser.report_semantic_error ("Identificador <"+id+"> não declarado!");
         }
@@ -738,8 +680,12 @@ fator
         }
     :}
     | S_NUMERO:numero
-    {: parser.mepa.append ("\tCRCT\t"+numero+"\n"); :}
+    {: 
+        parser.mepa.append ("\tCRCT\t"+numero+"\n"); 
+    :}
     | S_ABREPAR expressao S_FECHAPAR
     | S_NOT fator
-    {: parser.mepa.append ("\tNEGA\n"); :}
+    {: 
+        parser.mepa.append ("\tNEGA\n"); 
+    :}
 ;
