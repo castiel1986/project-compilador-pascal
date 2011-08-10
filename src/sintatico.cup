@@ -10,13 +10,11 @@ import java.util.*;
 parser code  {:
 
     StringBuilder mepa, saida;
-    int numeroRotinas;
     Erro e;
     int contaVars;
     int numeroEntradas;
     int numeroArgumentos;
     int rotulo;
-    int endereco;
     int nivel;
     int auxNumParam;
     int pre_rotina;
@@ -86,10 +84,28 @@ parser code  {:
         return e;
     }
 
+    public void cabecalhoFuncao(){
+        //Criar uma funcao para tratar cabecalho da funcao
+        //Obter tipo da funcao
+        Tipo tipo = (Tipo) pilhaSem.pollLast();
+
+        //Obter parametros caso tenha
+        Funcao func = new Funcao(rotulo, tipo, -3-numeroEntradas);
+        if(numeroEntradas > 0){
+            ListIterator it = pilhaSem.listIterator(pilhaSem.size() - numeroEntradas);
+            while(it.hasNext()){
+                func.addParametro((Parametro)it.next());
+                it.remove();
+            }
+        }
+        elemTab = (ElemTabSimb) pilhaSem.pollLast();
+        elemTab.setInfoC(func);
+    }
+
 :};
 
 terminal 
-        S_DIFERENTE, S_DOISPTOS, S_FECHAPAR, S_PROCEDURE,
+        S_DIFERENTE, S_DOISPTOS, S_FECHAPAR, S_PROCEDURE, S_FUNCTION,
         S_MAIGUAL, S_MEIGUAL, S_PROGRAM, S_PONTOVG, S_ABREPAR, S_VIRGULA,
         S_ATRIBUI, S_NUMERO, S_WHILE, S_WRITE, S_READ, S_MAIOR, S_MENOR,
         S_IGUAL, S_MENOS, S_VEZES, S_PONTO, S_BEGIN, S_THEN,
@@ -104,12 +120,12 @@ non terminal
         chamada_comando_leitura, lista_de_expressoes,
         lista_de_variaveis, atribuicao, composto,
         lista_comandos_sem_rotulo, condicional, alternativa_cond,
-        repetitivo, expressao, expressao_simples, termo, fator,
+        repetitivo, expressao, expressao_simples, termo, fator, tipo_de_retorno,
         declaracao_de_funcoes_e_procendimentos, lista_de_declaracao_de_funcao_ou_procedimento,
-        declaracao_de_funcao_ou_procedimento, declaracao_de_procedimento,
-        cabecalho_procedimento, lista_formal_de_parametros, secao_lista_de_parametros_formais,
+        declaracao_de_funcao_ou_procedimento, declaracao_de_procedimento, declaracao_de_funcao,
+        cabecalho_procedimento, cabecalho_funcao, lista_formal_de_parametros, secao_lista_de_parametros_formais,
         secao_de_parametros_formais, parametro_por_valor, parametro_por_referencia, lista_de_parametros,
-        chamada_procedimento, parametros, lista_de_parametros_atuais, parametros_atuais     
+        chamada_procedimento, chamada_funcao, parametros, lista_de_parametros_atuais, parametros_atuais     
 ;
 
 start with programa;
@@ -193,6 +209,11 @@ declaracao_de_funcao_ou_procedimento
             parser.auxNumParam = 0;
         :}
     declaracao_de_procedimento
+    |   {:
+            parser.rotulo++;
+            parser.auxNumParam = 0;
+        :}
+    declaracao_de_funcao
 ;
 
 declaracao_de_procedimento
@@ -207,6 +228,7 @@ declaracao_de_procedimento
     :}
 ;
 
+//Mudar cabecalho procedimento
 cabecalho_procedimento
     ::= S_PROCEDURE S_IDENTIF:id
     {:
@@ -245,6 +267,71 @@ cabecalho_procedimento
         }
     :}
 
+;
+
+declaracao_de_funcao
+    ::= 
+    {: 
+        parser.mepa.append ("L"+parser.rotulo+":\tENPR\t"+(parser.nivel+1)+"\n"); 
+    :}
+    cabecalho_funcao
+    {:
+        parser.cabecalhoFuncao();
+    :}
+    S_PONTOVG bloco
+    {:
+        parser.mepa.append ("\tRTPR\t"+(parser.nivel+1)+", "+parser.numeroEntradas+"\n");
+    :}
+;
+
+cabecalho_funcao
+    ::= S_FUNCTION S_IDENTIF:id 
+    {:
+        parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
+        if(parser.tabSimbolo.contains(parser.elemTab)){
+            parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
+        }else{
+            parser.tabSimbolo.add(parser.elemTab);
+            parser.pilhaSem.add(parser.elemTab);
+        }
+    :}
+    S_DOISPTOS tipo_de_retorno
+
+    | S_FUNCTION S_IDENTIF:id
+    {:
+        parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
+        if(parser.tabSimbolo.contains(parser.elemTab)){
+            parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
+        }else{
+            parser.tabSimbolo.add(parser.elemTab);
+            parser.pilhaSem.add(parser.elemTab);
+        }
+    :}
+    lista_formal_de_parametros S_DOISPTOS tipo_de_retorno
+;
+
+tipo_de_retorno
+    ::= S_IDENTIF:id
+    {:
+        //Buscar tipo na tabela de simbolos
+        parser.pilhaSem.add(Tipo.INTEGER);
+    :}
+;
+
+chamada_funcao
+    ::= S_IDENTIF:id
+    {:
+        parser.elemTab = parser.buscaSimbolo(id.toString());
+        if(parser.elemTab == null){
+            parser.report_semantic_error ("Função <"+id+"> não declarada!");
+        }else{
+            parser.pilhaSem.add(parser.elemTab);
+            parser.pre_rotina = 1;
+            parser.numeroArgumentos = 0;
+            parser.mepa.append ("\tAMEM\t"+1+"\n");
+        }
+    :}
+    parametros 
 ;
 
 lista_formal_de_parametros
@@ -537,8 +624,10 @@ atribuicao
             }else{
                 parser.mepa.append ("\tARMZ\t"+ parser.elemTab.getNivel()+","+((Parametro)infoC).getDeslocamento()+"\n");
             }
-        }else{
+        }else if(infoC instanceof Variavel){
             parser.mepa.append ("\tARMZ\t"+parser.elemTab.getNivel()+","+((Variavel)infoC).getDeslocamento()+"\n");
+        }else{
+            parser.mepa.append ("\tARMZ\t"+(parser.elemTab.getNivel()+1)+","+((Funcao)infoC).getDeslocamento()+"\n");
         }
     :}
 ;
@@ -664,11 +753,17 @@ fator
         parser.elemTab = parser.buscaSimbolo(id.toString());
         if(parser.elemTab == null){
             parser.report_semantic_error ("Identificador <"+id+"> não declarado!");
-        }
-        else{
+        }else{
             if(parser.pre_rotina == 1){
-                Procedimento proc = (Procedimento) ((ElemTabSimb) parser.pilhaSem.peekLast()).getInfoC();
-                Parametro p = proc.getParametro(parser.numeroArgumentos);
+                Parametro p = null;
+                ElemTabSimb el = (ElemTabSimb) parser.pilhaSem.peekLast();
+                if(el.getInfoC() instanceof Procedimento){
+                    Procedimento proc = (Procedimento) el.getInfoC();
+                    p = proc.getParametro(parser.numeroArgumentos);
+                }else{
+                    Funcao func = (Funcao) el.getInfoC();
+                    p = func.getParametro(parser.numeroArgumentos);
+                }
                 if(p.getMec() == Mecanismo.PAS_END){
                     parser.mepa.append ("\tCREN\t"+parser.elemTab.getNivel()+","+((Variavel) parser.elemTab.getInfoC()).getDeslocamento()+"\n");
                 }else{
@@ -683,6 +778,14 @@ fator
     {: 
         parser.mepa.append ("\tCRCT\t"+numero+"\n"); 
     :}
+    | chamada_funcao
+    {:
+        parser.pre_rotina = 0;
+        parser.numeroArgumentos = 0;
+        parser.elemTab = (ElemTabSimb) parser.pilhaSem.pollLast();
+        Funcao func = (Funcao) parser.elemTab.getInfoC();
+        parser.mepa.append ("\tCHPR\t"+"L"+func.getRotulo()+"\n");
+     :}
     | S_ABREPAR expressao S_FECHAPAR
     | S_NOT fator
     {: 

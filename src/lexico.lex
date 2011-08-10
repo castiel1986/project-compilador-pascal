@@ -34,6 +34,7 @@ Identif     = [A-Za-z_][A-Za-z_0-9]*
 %%
 
 <YYINITIAL> {
+   function       { return symbol (sym.S_FUNCTION); }  
    procedure      { return symbol (sym.S_PROCEDURE); }
    if             { return symbol (sym.S_IF); }
    then           { return symbol (sym.S_THEN); }
