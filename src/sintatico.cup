@@ -85,7 +85,6 @@ parser code  {:
     }
 
     public void cabecalhoFuncao(){
-        //Criar uma funcao para tratar cabecalho da funcao
         //Obter tipo da funcao
         Tipo tipo = (Tipo) pilhaSem.pollLast();
 
@@ -100,6 +99,21 @@ parser code  {:
         }
         elemTab = (ElemTabSimb) pilhaSem.pollLast();
         elemTab.setInfoC(func);
+    }
+
+    public void cabecalhoProcedimento(){
+
+        //Obter parametros caso tenha
+        Procedimento proc = new Procedimento(rotulo);
+        if(numeroEntradas > 0){
+            ListIterator it = pilhaSem.listIterator(pilhaSem.size() - numeroEntradas);
+            while(it.hasNext()){
+                proc.addParametro((Parametro)it.next());
+                it.remove();
+            }
+        }
+        elemTab = (ElemTabSimb) pilhaSem.pollLast();
+        elemTab.setInfoC(proc);
     }
 
 :};
@@ -221,51 +235,38 @@ declaracao_de_procedimento
     {: 
         parser.mepa.append ("L"+parser.rotulo+":\tENPR\t"+(parser.nivel+1)+"\n"); 
     :}
-    cabecalho_procedimento S_PONTOVG
-    bloco
+    cabecalho_procedimento
+    {:
+        parser.cabecalhoProcedimento();
+    :}
+    S_PONTOVG bloco
     {:
         parser.mepa.append ("\tRTPR\t"+(parser.nivel+1)+", "+parser.numeroEntradas+"\n");
     :}
 ;
 
-//Mudar cabecalho procedimento
 cabecalho_procedimento
     ::= S_PROCEDURE S_IDENTIF:id
     {:
         parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
-        Procedimento proc = new Procedimento(parser.rotulo);
         if(parser.tabSimbolo.contains(parser.elemTab)){
             parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
         }else{
-            parser.elemTab.setInfoC(proc);
             parser.tabSimbolo.add(parser.elemTab);
+            parser.pilhaSem.add(parser.elemTab);
         }
     :}
     | S_PROCEDURE S_IDENTIF:id
     {:
         parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
-        Procedimento proc = new Procedimento(parser.rotulo);
         if(parser.tabSimbolo.contains(parser.elemTab)){
             parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
         }else{
-            parser.elemTab.setInfoC(proc);
             parser.tabSimbolo.add(parser.elemTab);
+            parser.pilhaSem.add(parser.elemTab);
         }
     :}
     lista_formal_de_parametros
-    {:
-        if(parser.numeroEntradas > 0){
-            parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
-            parser.elemTab = parser.tabSimbolo.get(parser.tabSimbolo.indexOf(parser.elemTab));
-            ListIterator it = parser.pilhaSem.listIterator(parser.pilhaSem.size() - parser.numeroEntradas);
-            Procedimento proc = new Procedimento(parser.rotulo);
-            while(it.hasNext()){
-                proc.addParametro((Parametro)it.next());
-                it.remove();
-            }
-            parser.elemTab.setInfoC(proc);
-        }
-    :}
 
 ;
 
