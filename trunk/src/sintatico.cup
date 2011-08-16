@@ -124,22 +124,24 @@ terminal
         S_ATRIBUI, S_NUMERO, S_WHILE, S_WRITE, S_READ, S_MAIOR, S_MENOR,
         S_IGUAL, S_MENOS, S_VEZES, S_PONTO, S_BEGIN, S_THEN,
         S_ELSE, S_MAIS, S_VAR, S_END, S_DIV, S_AND, S_NOT,
-        S_IF, S_DO, S_OR, S_REPEAT, S_UNTIL, S_IDENTIF
+        S_IF, S_DO, S_OR, S_REPEAT, S_UNTIL, S_IDENTIF, S_CONST, S_TYPE,
+        S_ARRAY, S_ABRECOL, S_FECHACOL, S_OF, S_PTOPTO
 ;
 
 non terminal 
-        programa, bloco, variaveis, declaracoes_de_vars,
-        lista_de_identificadores, corpo, sequencia_comandos,
-        comando_sem_rotulo, chamada_comando_escrita,
-        chamada_comando_leitura, lista_de_expressoes,
-        lista_de_variaveis, atribuicao, composto,
-        lista_comandos_sem_rotulo, condicional, alternativa_cond,
-        repetitivo, expressao, expressao_simples, termo, fator, tipo_de_retorno,
+        programa, bloco, variaveis, declaracao_de_constante, declaracoes_de_vars,
+        lista_de_identificadores, corpo, sequencia_comandos, denotacao_de_tipo,
+        comando_sem_rotulo, chamada_comando_escrita, lista_de_constante, novo_tipo,
+        chamada_comando_leitura, lista_de_expressoes, declaracao_de_tipo, novo_tipo_estrutura,
+        lista_de_variaveis, atribuicao, composto, definicao_de_constante, estrutura_tipo,
+        lista_comandos_sem_rotulo, condicional, alternativa_cond, lista_de_tipo, tipo_array,
+        repetitivo, expressao, expressao_simples, termo, fator, tipo_de_retorno, tipo,
         declaracao_de_funcoes_e_procendimentos, lista_de_declaracao_de_funcao_ou_procedimento,
         declaracao_de_funcao_ou_procedimento, declaracao_de_procedimento, declaracao_de_funcao,
         cabecalho_procedimento, cabecalho_funcao, lista_formal_de_parametros, secao_lista_de_parametros_formais,
         secao_de_parametros_formais, parametro_por_valor, parametro_por_referencia, lista_de_parametros,
-        chamada_procedimento, chamada_funcao, parametros, lista_de_parametros_atuais, parametros_atuais     
+        chamada_procedimento, chamada_funcao, parametros, lista_de_parametros_atuais, parametros_atuais,
+        lista_de_indices, definicao_de_tipo, tipo_indice
 ;
 
 start with programa;
@@ -163,7 +165,9 @@ bloco
     ::= 
     {: 
         parser.nivel++; 
-    :} 
+    :}
+    declaracao_de_constante
+    declaracao_de_tipo
     variaveis declaracao_de_funcoes_e_procendimentos
     corpo
     {:  
@@ -189,9 +193,82 @@ variaveis
     :}
 ;
 
+declaracao_de_constante
+    ::=  /* vazio */
+    | S_CONST lista_de_constante
+;
+
+lista_de_constante
+    ::= lista_de_constante definicao_de_constante
+    | definicao_de_constante
+;
+
+definicao_de_constante
+    ::= S_IDENTIF:id
+    {:
+        parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
+        if(parser.tabSimbolo.contains(parser.elemTab)){
+            parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
+        }else{
+            parser.elemTab.setInfoC(new Variavel(parser.contaVars));
+            parser.tabSimbolo.add(parser.elemTab);
+        }
+    :}
+     S_IGUAL expressao S_PONTOVG
+;
+
+declaracao_de_tipo
+    ::= /* vazio */
+    | S_TYPE lista_de_tipo
+;
+
+lista_de_tipo
+    ::= lista_de_tipo definicao_de_tipo
+    | definicao_de_tipo
+;
+
+definicao_de_tipo
+    ::= S_IDENTIF S_IGUAL denotacao_de_tipo S_PONTOVG
+;
+
+denotacao_de_tipo
+    ::= S_IDENTIF
+    | novo_tipo
+;
+
+novo_tipo
+    ::= novo_tipo_estrutura
+;
+
+novo_tipo_estrutura
+    ::= estrutura_tipo
+;
+
+estrutura_tipo
+    ::= tipo_array
+;
+
+tipo_array
+    ::= S_ARRAY S_ABRECOL lista_de_indices S_FECHACOL S_OF tipo
+;
+
+tipo
+    ::= denotacao_de_tipo
+;
+
+lista_de_indices
+    ::= lista_de_indices S_VIRGULA tipo_indice
+    | tipo_indice
+;
+
+tipo_indice
+    ::= S_NUMERO S_PTOPTO S_NUMERO
+;
+
+
 declaracoes_de_vars
-    ::= declaracoes_de_vars lista_de_identificadores S_DOISPTOS S_IDENTIF S_PONTOVG
-    | lista_de_identificadores S_DOISPTOS S_IDENTIF S_PONTOVG
+    ::= declaracoes_de_vars lista_de_identificadores S_DOISPTOS denotacao_de_tipo S_PONTOVG
+    | lista_de_identificadores S_DOISPTOS denotacao_de_tipo S_PONTOVG
 ;
 
 declaracao_de_funcoes_e_procendimentos
