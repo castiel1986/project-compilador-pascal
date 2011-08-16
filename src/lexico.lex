@@ -43,6 +43,10 @@ Identif     = [A-Za-z_][A-Za-z_0-9]*
    do             { return symbol (sym.S_DO); }
    program        { return symbol (sym.S_PROGRAM); }
    var            { return symbol (sym.S_VAR); }
+   const          { return symbol (sym.S_CONST); }
+   type           { return symbol (sym.S_TYPE); } 
+   array          { return symbol (sym.S_ARRAY); }  
+   of             { return symbol (sym.S_OF); }
    begin          { return symbol (sym.S_BEGIN); }
    end            { return symbol (sym.S_END); }
    div            { return symbol (sym.S_DIV); }
@@ -63,12 +67,15 @@ Identif     = [A-Za-z_][A-Za-z_0-9]*
    ","            { return symbol (sym.S_VIRGULA); }
    "("            { return symbol (sym.S_ABREPAR); }
    ")"            { return symbol (sym.S_FECHAPAR); }
+   "["            { return symbol (sym.S_ABRECOL); } 
+   "]"            { return symbol (sym.S_FECHACOL); } 
    ">"            { return symbol (sym.S_MAIOR); }
    "<"            { return symbol (sym.S_MENOR); }
    ">="           { return symbol (sym.S_MAIGUAL); }
    "<="           { return symbol (sym.S_MEIGUAL); }
    "="            { return symbol (sym.S_IGUAL); }
    "<>"           { return symbol (sym.S_DIFERENTE); }
+   ".."           { return symbol (sym.S_PTOPTO); } 
    {Numero}       { return symbol (sym.S_NUMERO, yytext());}
    {Identif}      { return symbol (sym.S_IDENTIF, yytext());}
    {Espaco}       { /* Pula sem fazer nada */ }
