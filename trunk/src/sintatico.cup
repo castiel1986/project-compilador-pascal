@@ -12,6 +12,7 @@ parser code  {:
     StringBuilder mepa, saida;
     Erro e;
     int contaVars;
+    int deslocamento;
     int numeroEntradas;
     int numeroArgumentos;
     int rotulo;
@@ -116,6 +117,62 @@ parser code  {:
         elemTab.setInfoC(proc);
     }
 
+    public void verificaLimiteArray (String limI, String limS){
+        
+        int limInf, limSup;
+        limInf = Integer.parseInt(limI.toString());
+        limSup = Integer.parseInt(limS.toString());
+        
+        if(limInf > limSup){
+            report_semantic_error ("O limite inferior deve ser menor ou igual ao limite superior!");
+        }
+
+        IndiceArray indA = new IndiceArray(limInf, limSup);
+        pilhaSem.add(indA);
+    }
+
+    public void declaracaoVariaveis(){
+        
+        if(contaVars > 0){
+
+            /* Posicionar indice no início da declaração de variáveis */
+            int indice = pilhaSem.indexOf(Marca.DECLARACAO_VARS);
+            int tamanhoPilha = pilhaSem.size();
+            pilhaSem.remove(indice);
+            
+            for(int i = 0; i < contaVars ; i++){
+                
+                elemPilha = pilhaSem.get(indice);
+                elemTab = (ElemTabSimb) elemPilha;
+
+                if(tabSimbolo.contains(elemTab)){
+                    report_semantic_error ("Identificador <"+elemTab.getNome()+"> já declarado!");
+                }
+
+                /* Tratar declação de array */    
+                if(indice+1 < pilhaSem.size() && pilhaSem.get(indice+1) instanceof IndiceArray){
+                    pilhaSem.remove(indice);
+                    IndiceArray indAr = (IndiceArray) pilhaSem.get(indice);
+                    elemTab.setInfoC(new Array(deslocamento, indAr));
+                    tabSimbolo.add(elemTab);
+                    pilhaSem.remove(indice);
+                    
+                    /* Ajustar deslocamento */
+                    deslocamento += indAr.getLimSuperior() - indAr.getLimInferior() + 1;
+                }else{
+                    elemTab.setInfoC(new Variavel(deslocamento++));
+                    tabSimbolo.add(elemTab);
+                    pilhaSem.remove(indice);
+                }
+            }
+            
+            mepa.append ("\tAMEM\t"+(deslocamento)+"\n");
+            elemPilha = new VariaveisDeclaradas(deslocamento);
+            pilhaSem.add(elemPilha);
+        }
+  
+    }
+
 :};
 
 terminal 
@@ -182,14 +239,15 @@ bloco
 
 variaveis
     ::=  /* vazio */
-    | S_VAR {: parser.contaVars = 0; :}
+    | S_VAR 
+    {: 
+        parser.contaVars = 0; 
+        parser.deslocamento = 0;
+        parser.pilhaSem.add(Marca.DECLARACAO_VARS);
+    :}
     declaracoes_de_vars
     {:
-        if(parser.contaVars > 0){
-            parser.mepa.append ("\tAMEM\t"+parser.contaVars+"\n");
-            parser.elemPilha = new VariaveisDeclaradas(parser.contaVars);
-            parser.pilhaSem.add(parser.elemPilha);
-        }
+        parser.declaracaoVariaveis();
     :}
 ;
 
@@ -232,7 +290,8 @@ definicao_de_tipo
 ;
 
 denotacao_de_tipo
-    ::= S_IDENTIF
+    ::= 
+    S_IDENTIF
     | novo_tipo
 ;
 
@@ -262,7 +321,10 @@ lista_de_indices
 ;
 
 tipo_indice
-    ::= S_NUMERO S_PTOPTO S_NUMERO
+    ::= S_NUMERO: limInf S_PTOPTO S_NUMERO: limSup
+    {:
+        parser.verificaLimiteArray(limInf.toString(), limSup.toString());
+    :}
 ;
 
 
@@ -538,25 +600,15 @@ lista_de_parametros
 lista_de_identificadores
     ::= lista_de_identificadores S_VIRGULA S_IDENTIF:id
     {:
-        parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
-        if(parser.tabSimbolo.contains(parser.elemTab)){
-            parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
-        }else{
-            parser.elemTab.setInfoC(new Variavel(parser.contaVars));
-            parser.tabSimbolo.add(parser.elemTab);
-            parser.contaVars++;
-        }
+        parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);    
+        parser.pilhaSem.add(parser.elemTab);
+        parser.contaVars++;
     :}
     | S_IDENTIF:id
     {:
         parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
-        if(parser.tabSimbolo.contains(parser.elemTab)){
-            parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
-        }else{
-            parser.elemTab.setInfoC(new Variavel(parser.contaVars));
-            parser.tabSimbolo.add(parser.elemTab);
-            parser.contaVars++;
-        }
+        parser.pilhaSem.add(parser.elemTab);
+        parser.contaVars++;
     :}
 ;
 
