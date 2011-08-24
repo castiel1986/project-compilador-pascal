@@ -3,14 +3,12 @@
  * and open the template in the editor.
  */
 
-
-
 /**
  *
  * @author Everton
  */
-public enum Tipo implements ElemPilhaSem{
-
-    INTEGER, BOLLEAN, REAL
-
+public enum Marca implements ElemPilhaSem{
+    
+    DECLARACAO_VARS
+    
 }
