@@ -1,8 +1,5 @@
 package entidade;
 
-
-import entidade.ElemPilhaSem;
-
 /*
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
@@ -14,6 +11,7 @@ import entidade.ElemPilhaSem;
  */
 public enum Marca implements ElemPilhaSem{
     
-    DECLARACAO_VARS
+    DECLARACAO_VARS, CHAMADA_PROCEDIMENTO, COMANDO_ESCRITA, COMANDO_LEITURA, EXPRESSAO, VARIAVEL_INDEXADA,
+    ATRIBUICAO
     
 }

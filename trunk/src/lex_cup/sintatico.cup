@@ -172,7 +172,77 @@ parser code  {:
             elemPilha = new VariaveisDeclaradas(deslocamento);
             pilhaSem.add(elemPilha);
         }
-  
+    }
+
+    public void chamadaProcedimento(){
+            
+        /* Posicionar indice no início da chamada procedimento */
+        int indice = pilhaSem.indexOf(Marca.CHAMADA_PROCEDIMENTO);
+        pilhaSem.remove(indice);
+        elemTab = (ElemTabSimb) pilhaSem.remove(indice);
+        Procedimento proc = (Procedimento) elemTab.getInfoC();
+        mepa.append ("\tCHPR\t"+"L"+proc.getRotulo()+"\n");
+    }
+
+    public void comandoEscrita(){
+
+        /* Posicionar indice no início do comando de escrita */
+        int indice = pilhaSem.indexOf(Marca.COMANDO_ESCRITA);
+        pilhaSem.remove(indice);
+        mepa.append ("\tIMPR\n");
+
+    }
+
+    public void comandoLeitura(){
+
+        /* Posicionar indice no início do comando de leitura */
+        int indice = pilhaSem.indexOf(Marca.COMANDO_LEITURA);
+        pilhaSem.remove(indice);
+        ListIterator lisIt = pilhaSem.listIterator(indice);    
+
+        while(lisIt.hasNext()){
+            elemTab = (ElemTabSimb) lisIt.next();
+            lisIt.remove();
+            InfoComplementar infoC = elemTab.getInfoC();
+            
+            mepa.append ("\tLEIT\n");
+            if( infoC instanceof Parametro){
+                if(((Parametro)infoC).getMec() == Mecanismo.PAS_END){
+                    mepa.append ("\tARMI\t"+ elemTab.getNivel()+","+((Parametro)infoC).getDeslocamento()+"\n");
+                }else{
+                    mepa.append ("\tARMZ\t"+ elemTab.getNivel()+","+((Parametro)infoC).getDeslocamento()+"\n");
+                }
+            }else if(infoC instanceof Variavel){
+                if(infoC instanceof Array){
+                    mepa.append ("\tARME\t"+elemTab.getNivel()+","+((Array)infoC).getDeslocamento()+"\n");
+                }else{    
+                    mepa.append ("\tARMZ\t"+elemTab.getNivel()+","+((Variavel)infoC).getDeslocamento()+"\n");
+                }
+            }
+           
+        }
+
+    }
+
+    public void atribuicao(){
+
+        elemTab = (ElemTabSimb) pilhaSem.pollLast();
+        InfoComplementar infoC = elemTab.getInfoC();
+        if( infoC instanceof Parametro){
+            if(((Parametro)infoC).getMec() == Mecanismo.PAS_END){
+                mepa.append ("\tARMI\t"+ elemTab.getNivel()+","+((Parametro)infoC).getDeslocamento()+"\n");
+            }else{
+                mepa.append ("\tARMZ\t"+ elemTab.getNivel()+","+((Parametro)infoC).getDeslocamento()+"\n");
+            }
+        }else if(infoC instanceof Variavel){
+            if(infoC instanceof Array){
+                mepa.append ("\tARME\t"+elemTab.getNivel()+","+((Array)infoC).getDeslocamento()+"\n");
+            }else{    
+                mepa.append ("\tARMZ\t"+elemTab.getNivel()+","+((Variavel)infoC).getDeslocamento()+"\n");
+            }
+        }else if(infoC instanceof Funcao){
+            mepa.append ("\tARMZ\t"+(elemTab.getNivel()+1)+","+((Funcao)infoC).getDeslocamento()+"\n");
+        }
     }
 
 :};
@@ -217,7 +287,7 @@ programa
     :}
     S_PROGRAM S_IDENTIF S_PONTOVG bloco S_PONTO
     {: 
-    parser.mepa.append ("\tPARA\n\tFIM\n");
+        parser.mepa.append ("\tPARA\n\tFIM\n");
     :}
 ;
 
@@ -623,20 +693,24 @@ sequencia_comandos
     ::= sequencia_comandos S_PONTOVG comando_sem_rotulo
     | comando_sem_rotulo
 ;
-
 comando_sem_rotulo
     ::=  /* vazio */
     | chamada_comando_escrita
+        {:
+            parser.comandoEscrita();
+        :}
     | chamada_comando_leitura
+        {:
+            parser.comandoLeitura();
+        :}
     | chamada_procedimento
         {:
-            parser.pre_rotina = 0;
-            parser.numeroArgumentos = 0;
-            parser.elemTab = (ElemTabSimb) parser.pilhaSem.pollLast();
-            Procedimento proc = (Procedimento) parser.elemTab.getInfoC();
-            parser.mepa.append ("\tCHPR\t"+"L"+proc.getRotulo()+"\n");
+            parser.chamadaProcedimento();
         :}
     | atribuicao
+        {:
+            parser.atribuicao();
+        :}
     | composto
     | condicional
     | repetitivo
@@ -649,9 +723,8 @@ chamada_procedimento
         if(parser.elemTab == null){
             parser.report_semantic_error ("Procedimento <"+id+"> não declarado!");
         }else{
+            parser.pilhaSem.add(Marca.CHAMADA_PROCEDIMENTO);
             parser.pilhaSem.add(parser.elemTab);
-            parser.pre_rotina = 1;
-            parser.numeroArgumentos = 0;
         }
     :}
     parametros
@@ -661,9 +734,8 @@ chamada_procedimento
         if(parser.elemTab == null){
             parser.report_semantic_error ("Procedimento <"+id+"> não declarado!");
         }else{
+            parser.pilhaSem.add(Marca.CHAMADA_PROCEDIMENTO);
             parser.pilhaSem.add(parser.elemTab);
-            parser.pre_rotina = 1;
-            parser.numeroArgumentos = 0;
         }
     :}
 ;
@@ -685,80 +757,44 @@ parametros_atuais
 
 chamada_comando_escrita
     ::= S_WRITE
+    {:
+        parser.pilhaSem.add(Marca.COMANDO_ESCRITA);
+    :}
     S_ABREPAR lista_de_expressoes S_FECHAPAR
 ;
 
 chamada_comando_leitura
     ::= S_READ
+    {:
+        parser.pilhaSem.add(Marca.COMANDO_LEITURA);
+    :}
     S_ABREPAR lista_de_variaveis S_FECHAPAR
 ;
 
 lista_de_expressoes
     ::=  /* vazio */
-    | lista_de_expressoes S_VIRGULA
-    expressao
-    {: 
-        parser.mepa.append ("\tIMPR\n"); 
-    :}
-    |
-    expressao
-    {: 
-        parser.mepa.append ("\tIMPR\n"); 
-    :}
+    | lista_de_expressoes S_VIRGULA expressao
+    | expressao
 ;
 
 lista_de_variaveis
     ::=  /* vazio */
-    | lista_de_variaveis S_VIRGULA
-    S_IDENTIF:id
-    {:
-        parser.elemTab = parser.buscaSimbolo(id.toString());
-        if(parser.elemTab == null){
-            parser.report_semantic_error ("Identificador <"+id+"> não declarado!");
-        }
-        else {
-            parser.mepa.append ("\tLEIT\n");
-            parser.mepa.append ("\tARMZ\t"+parser.elemTab.getNivel()+","+((Variavel)parser.elemTab.getInfoC()).getDeslocamento()+"\n");
-        }
-    :}
-
-    |
-    S_IDENTIF:id
-    {:
-        parser.elemTab = parser.buscaSimbolo(id.toString());
-        if(parser.elemTab == null){
-            parser.report_semantic_error ("Identificador <"+id+"> não declarado!");
-        }
-        else{
-            parser.mepa.append ("\tLEIT\n");
-            parser.mepa.append ("\tARMZ\t"+parser.elemTab.getNivel()+","+((Variavel)parser.elemTab.getInfoC()).getDeslocamento()+"\n");
-        }
-    :}
+    | lista_de_variaveis S_VIRGULA variavel_de_acesso
+    | variavel_de_acesso
 
 ;
 
 atribuicao
     ::= variavel_de_acesso
-    S_ATRIBUI expressao
     {:
-        parser.elemTab = (ElemTabSimb) parser.pilhaSem.pollLast();
+        parser.elemTab = (ElemTabSimb) parser.pilhaSem.peekLast();
         InfoComplementar infoC = parser.elemTab.getInfoC();
-        if( infoC instanceof Parametro){
-            if(((Parametro)infoC).getMec() == Mecanismo.PAS_END){
-                parser.mepa.append ("\tARMI\t"+ parser.elemTab.getNivel()+","+((Parametro)infoC).getDeslocamento()+"\n");
-            }else{
-                parser.mepa.append ("\tARMZ\t"+ parser.elemTab.getNivel()+","+((Parametro)infoC).getDeslocamento()+"\n");
-            }
-        }else if(infoC instanceof Variavel){
-            if(infoC instanceof Array){
-                parser.mepa.append ("\tARME\t"+parser.elemTab.getNivel()+","+((Array)infoC).getDeslocamento()+"\n");
-            }else{    
-                parser.mepa.append ("\tARMZ\t"+parser.elemTab.getNivel()+","+((Variavel)infoC).getDeslocamento()+"\n");
-            }
-        }else if(infoC instanceof Funcao){
-            parser.mepa.append ("\tARMZ\t"+(parser.elemTab.getNivel()+1)+","+((Funcao)infoC).getDeslocamento()+"\n");
+        if( infoC instanceof Array){
+            parser.mepa.append ("\tCRCT\t"+((Array)infoC).getDeslocamento()+"\n");
+            parser.mepa.append ("\tSUBT\n");
         }
     :}
+    S_ATRIBUI expressao
 ;
 
 variavel_de_acesso
@@ -777,14 +813,6 @@ variavel_de_acesso
 
 variavel_indexada
     ::= variavel_de_acesso S_ABRECOL indice_de_lista_de_expressao S_FECHACOL
-    {:
-        parser.elemTab = (ElemTabSimb) parser.pilhaSem.peekLast();
-        InfoComplementar infoC = parser.elemTab.getInfoC();
-        if(infoC instanceof Array){
-            parser.mepa.append ("\tCRCT\t"+((Array)infoC).getLimInferior()+"\n");
-            parser.mepa.append ("\tSUBT\n");
-        }
-    :}
 ;
 
 indice_de_lista_de_expressao
@@ -868,74 +896,100 @@ repetitivo
 ;
 
 expressao
-    ::= expressao_simples S_IGUAL   expressao_simples
-      {: parser.mepa.append ("\tCMIG\n"); :}
+    ::= expressao_simples S_IGUAL expressao_simples
+    {: 
+        //parser.pilhaSem.add(Operador.IGUAL);
+        parser.mepa.append ("\tCMIG\n"); 
+    :}
     | expressao_simples S_DIFERENTE expressao_simples
-      {: parser.mepa.append ("\tCMDG\n"); :}
-    | expressao_simples S_MENOR     expressao_simples
-      {: parser.mepa.append ("\tCMME\n"); :}
-    | expressao_simples S_MAIOR     expressao_simples
-      {: parser.mepa.append ("\tCMMA\n"); :}
-    | expressao_simples S_MEIGUAL   expressao_simples
-      {: parser.mepa.append ("\tCMEG\n"); :}
-    | expressao_simples S_MAIGUAL   expressao_simples
-      {: parser.mepa.append ("\tCMAG\n"); :}
+    {:  
+        //parser.pilhaSem.add(Operador.DIFERENTE);
+        parser.mepa.append ("\tCMDG\n"); 
+    :}
+    | expressao_simples S_MENOR expressao_simples
+    {: 
+        //parser.pilhaSem.add(Operador.MENOR);
+        parser.mepa.append ("\tCMME\n"); 
+    :}
+    | expressao_simples S_MAIOR expressao_simples
+    {: 
+        //parser.pilhaSem.add(Operador.MAIOR);
+        parser.mepa.append ("\tCMMA\n"); 
+    :}
+    | expressao_simples S_MEIGUAL expressao_simples
+    {: 
+        //parser.pilhaSem.add(Operador.MENOR_IGUAL);
+        parser.mepa.append ("\tCMEG\n"); 
+    :}
+    | expressao_simples S_MAIGUAL expressao_simples
+    {: 
+        //parser.pilhaSem.add(Operador.MAIOR_IGUAL);
+        parser.mepa.append ("\tCMAG\n"); 
+    :}
     | expressao_simples
 ;
 
 expressao_simples
     ::= expressao_simples S_MAIS  termo
-      {: parser.mepa.append ("\tSOMA\n"); :}
+    {: 
+        //parser.pilhaSem.add(Operador.SOMA);
+        parser.mepa.append ("\tSOMA\n"); 
+    :}
     | expressao_simples S_MENOS termo
-      {: parser.mepa.append ("\tSUBT\n"); :}
-    | expressao_simples S_OR    termo
-      {: parser.mepa.append ("\tDISJ\n"); :}
+    {: 
+        //parser.pilhaSem.add(Operador.SUBTRACAO);
+        parser.mepa.append ("\tSUBT\n"); 
+    :}
+    | expressao_simples S_OR termo
+    {: 
+        //parser.pilhaSem.add(Operador.DISJUNCAO);
+        parser.mepa.append ("\tDISJ\n"); 
+    :}
     | S_MAIS termo
     | S_MENOS termo
-      {: parser.mepa.append ("\tINVR\n"); :}
+    {: 
+        //parser.pilhaSem.add(Operador.INVERTE);
+        parser.mepa.append ("\tINVR\n"); 
+    :}
     | termo
 ;
 
 termo
     ::= termo S_VEZES fator
-      {: parser.mepa.append ("\tMULT\n"); :}
+    {: 
+        //parser.pilhaSem.add(Operador.MULTIPLICACAO);
+        parser.mepa.append ("\tMULT\n"); 
+    :}
     | termo S_DIV fator
-      {: parser.mepa.append ("\tDIVI\n"); :}
+    {: 
+        //parser.pilhaSem.add(Operador.DIVISAO);
+        parser.mepa.append ("\tDIVI\n"); 
+    :}
     | termo S_AND fator
-      {: parser.mepa.append ("\tCONJ\n"); :}
+    {: 
+        //parser.pilhaSem.add(Operador.CONJUNCAO);
+        parser.mepa.append ("\tCONJ\n"); 
+    :}
     | fator
 ;
 
 fator
     ::=
-    S_IDENTIF:id
+    variavel_de_acesso
     {:
-        parser.elemTab = parser.buscaSimbolo(id.toString());
-        if(parser.elemTab == null){
-            parser.report_semantic_error ("Identificador <"+id+"> não declarado!");
+        parser.elemTab = (ElemTabSimb) parser.pilhaSem.pollLast();
+        InfoComplementar infoC = parser.elemTab.getInfoC();
+        if( infoC instanceof Array){
+            parser.mepa.append ("\tCRCT\t"+((Array)infoC).getDeslocamento()+"\n");
+            parser.mepa.append ("\tSUBT\n");
+            parser.mepa.append ("\tCREL\t"+parser.elemTab.getNivel()+","+((Array)infoC).getDeslocamento()+"\n");
         }else{
-            if(parser.pre_rotina == 1){
-                Parametro p = null;
-                ElemTabSimb el = (ElemTabSimb) parser.pilhaSem.peekLast();
-                if(el.getInfoC() instanceof Procedimento){
-                    Procedimento proc = (Procedimento) el.getInfoC();
-                    p = proc.getParametro(parser.numeroArgumentos);
-                }else{
-                    Funcao func = (Funcao) el.getInfoC();
-                    p = func.getParametro(parser.numeroArgumentos);
-                }
-                if(p.getMec() == Mecanismo.PAS_END){
-                    parser.mepa.append ("\tCREN\t"+parser.elemTab.getNivel()+","+((Variavel) parser.elemTab.getInfoC()).getDeslocamento()+"\n");
-                }else{
-                    parser.mepa.append ("\tCRVL\t"+parser.elemTab.getNivel()+","+((Variavel) parser.elemTab.getInfoC()).getDeslocamento()+"\n");
-                }
-            }else{
-                parser.mepa.append ("\tCRVL\t"+parser.elemTab.getNivel()+","+((Variavel) parser.elemTab.getInfoC()).getDeslocamento()+"\n");
-            }
+            parser.mepa.append ("\tCRVL\t"+parser.elemTab.getNivel()+","+((Variavel)infoC).getDeslocamento()+"\n");
         }
     :}
     | S_NUMERO:numero
     {: 
+        //parser.pilhaSem.add(new Numero(Integer.parseInt(numero.toString())));
         parser.mepa.append ("\tCRCT\t"+numero+"\n"); 
     :}
     | chamada_funcao
@@ -949,6 +1003,7 @@ fator
     | S_ABREPAR expressao S_FECHAPAR
     | S_NOT fator
     {: 
+        //parser.pilhaSem.add(Operador.NEGACAO);
         parser.mepa.append ("\tNEGA\n"); 
     :}
 ;
