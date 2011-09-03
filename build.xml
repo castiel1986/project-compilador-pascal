@@ -20,11 +20,11 @@
 
   <!-- Create the Lexer.java file -->
     <target name="jflex" description="do the jflex thing">
-        <jflex file="${src}/lexico.lex" destdir="${src}" />
+        <jflex file="${src}/lex_cup/lexico.lex" destdir="${src}" />
     </target>
 
     <target name="cup">
-        <cup srcfile="${src}/sintatico.cup"
+        <cup srcfile="${src}/lex_cup/sintatico.cup"
             expect="1"
             parser="sintatico"
             symbols="sym"
@@ -35,9 +35,9 @@
 
     <target name="clear"
         description="clean up" >
-        <delete file="${src}/lexico.java"/>
-        <delete file="${src}/sintatico.java"/>
-        <delete file="${src}/sym.java"/>
+        <delete file="${src}/controle/lexico.java"/>
+        <delete file="${src}/controle/sintatico.java"/>
+        <delete file="${src}/controle/sym.java"/>
     </target>
 
     <target name="criaJFlexJCup" depends="jflex,cup"

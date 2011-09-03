@@ -1,4 +1,9 @@
 
+import entidade.Tipo;
+import entidade.Mecanismo;
+import entidade.Procedimento;
+import entidade.ElemTabSimb;
+import entidade.ElemPilhaSem;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.ListIterator;
@@ -44,11 +49,12 @@ public class TestePilhaSem {
         pilha.add(Tipo.INTEGER);
         pilha.add(Mecanismo.PAS_END);
         pilha.add(Tipo.INTEGER);
+        pilha.peekLast();
 
 
         ListIterator it = pilha.listIterator(pilha.size() - 2*3 - 1);
 
-        while(it.hasNext()){
+        while(it.hasNext()){    
             System.out.println(it.next());
         }
 
