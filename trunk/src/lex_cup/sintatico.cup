@@ -898,32 +898,26 @@ repetitivo
 expressao
     ::= expressao_simples S_IGUAL expressao_simples
     {: 
-        //parser.pilhaSem.add(Operador.IGUAL);
         parser.mepa.append ("\tCMIG\n"); 
     :}
     | expressao_simples S_DIFERENTE expressao_simples
     {:  
-        //parser.pilhaSem.add(Operador.DIFERENTE);
         parser.mepa.append ("\tCMDG\n"); 
     :}
     | expressao_simples S_MENOR expressao_simples
     {: 
-        //parser.pilhaSem.add(Operador.MENOR);
         parser.mepa.append ("\tCMME\n"); 
     :}
     | expressao_simples S_MAIOR expressao_simples
     {: 
-        //parser.pilhaSem.add(Operador.MAIOR);
         parser.mepa.append ("\tCMMA\n"); 
     :}
     | expressao_simples S_MEIGUAL expressao_simples
     {: 
-        //parser.pilhaSem.add(Operador.MENOR_IGUAL);
         parser.mepa.append ("\tCMEG\n"); 
     :}
     | expressao_simples S_MAIGUAL expressao_simples
     {: 
-        //parser.pilhaSem.add(Operador.MAIOR_IGUAL);
         parser.mepa.append ("\tCMAG\n"); 
     :}
     | expressao_simples
@@ -932,23 +926,19 @@ expressao
 expressao_simples
     ::= expressao_simples S_MAIS  termo
     {: 
-        //parser.pilhaSem.add(Operador.SOMA);
         parser.mepa.append ("\tSOMA\n"); 
     :}
     | expressao_simples S_MENOS termo
     {: 
-        //parser.pilhaSem.add(Operador.SUBTRACAO);
         parser.mepa.append ("\tSUBT\n"); 
     :}
     | expressao_simples S_OR termo
     {: 
-        //parser.pilhaSem.add(Operador.DISJUNCAO);
         parser.mepa.append ("\tDISJ\n"); 
     :}
     | S_MAIS termo
     | S_MENOS termo
     {: 
-        //parser.pilhaSem.add(Operador.INVERTE);
         parser.mepa.append ("\tINVR\n"); 
     :}
     | termo
@@ -957,17 +947,14 @@ expressao_simples
 termo
     ::= termo S_VEZES fator
     {: 
-        //parser.pilhaSem.add(Operador.MULTIPLICACAO);
         parser.mepa.append ("\tMULT\n"); 
     :}
     | termo S_DIV fator
     {: 
-        //parser.pilhaSem.add(Operador.DIVISAO);
         parser.mepa.append ("\tDIVI\n"); 
     :}
     | termo S_AND fator
     {: 
-        //parser.pilhaSem.add(Operador.CONJUNCAO);
         parser.mepa.append ("\tCONJ\n"); 
     :}
     | fator
@@ -989,7 +976,6 @@ fator
     :}
     | S_NUMERO:numero
     {: 
-        //parser.pilhaSem.add(new Numero(Integer.parseInt(numero.toString())));
         parser.mepa.append ("\tCRCT\t"+numero+"\n"); 
     :}
     | chamada_funcao
@@ -1003,7 +989,6 @@ fator
     | S_ABREPAR expressao S_FECHAPAR
     | S_NOT fator
     {: 
-        //parser.pilhaSem.add(Operador.NEGACAO);
         parser.mepa.append ("\tNEGA\n"); 
     :}
 ;
