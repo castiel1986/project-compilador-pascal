@@ -21,6 +21,7 @@ parser code  {:
     int nivel;
     int auxNumParam;
     int pre_rotina;
+    int comando_escrita;
     Rotulo ultimoRotulo;
     LinkedList<ElemPilhaSem> pilhaSem = new LinkedList<ElemPilhaSem>();
     ArrayList<ElemTabSimb> tabSimbolo = new ArrayList<ElemTabSimb>();
@@ -184,15 +185,6 @@ parser code  {:
         mepa.append ("\tCHPR\t"+"L"+proc.getRotulo()+"\n");
     }
 
-    public void comandoEscrita(){
-
-        /* Posicionar indice no início do comando de escrita */
-        int indice = pilhaSem.indexOf(Marca.COMANDO_ESCRITA);
-        pilhaSem.remove(indice);
-        mepa.append ("\tIMPR\n");
-
-    }
-
     public void comandoLeitura(){
 
         /* Posicionar indice no início do comando de leitura */
@@ -245,6 +237,191 @@ parser code  {:
         }
     }
 
+    /* Seta variáveis de controle para declaração de variáveis */
+    public void iniciaDecVars(){
+        contaVars = 0; 
+        deslocamento = 0;
+        pilhaSem.add(Marca.DECLARACAO_VARS);
+    }
+
+    public void liberaMemoria(){
+        if(pilhaSem.peekLast() instanceof VariaveisDeclaradas){
+            elemPilha = pilhaSem.pollLast();
+            mepa.append("\tDMEM\t"+((VariaveisDeclaradas)elemPilha).getQuantidade()+"\n");
+        }
+        eliminaSimbolos(nivel);
+        nivel--;
+    }
+
+    public void instanciaIdentificador(String id){
+        elemTab = new ElemTabSimb(id, nivel);
+        if(tabSimbolo.contains(elemTab)){
+            report_semantic_error ("Identificador <"+id+"> já declarado!");
+        }else{
+            elemTab.setInfoC(new Variavel(contaVars));
+            tabSimbolo.add(elemTab);
+        }
+    }
+
+    /* Seta variáveis para a declaração de Procedimentos e Funções */
+    public void iniciaDecProcFunc(){
+        rotulo++;
+        mepa.append ("\tDSVS\tL"+rotulo+"\n");
+        pilhaSem.add(new Rotulo(rotulo));
+    }
+
+    /* Finaliza declaração de Procedimentos e Funções */
+    public void finalizaDecProcFunc(){
+        elemPilha = pilhaSem.pollLast();
+        if(elemPilha instanceof Rotulo){
+          mepa.append ("L"+((Rotulo)elemPilha).getRotulo()+":\tNADA\n");
+        }
+    }
+
+    public void inicioChamadaFuncao(String id){
+        elemTab = buscaSimbolo(id);
+        if(elemTab == null){
+            report_semantic_error ("Função <"+id+"> não declarada!");
+        }else{
+            pilhaSem.add(elemTab);
+            pre_rotina = 1;
+            numeroArgumentos = 0;
+            mepa.append ("\tAMEM\t"+1+"\n");
+        }
+    }
+
+    /* Setar deslocamento para os parâmetros */
+    public void deslocamentoParametros(){
+        int i;
+        Parametro p;
+        LinkedList<Parametro> param = new LinkedList<Parametro>();
+
+        /* Setar deslocamento para os parametros */
+        for(i = numeroEntradas; i > 0; i--){            
+            p = (Parametro) pilhaSem.pollLast();
+            p.setDeslocamento(-3-(numeroEntradas-i));
+            param.add(p);
+        }
+
+        /* Adicionar os parametros novamente */
+        for( i = numeroEntradas; i > 0; i--){
+            pilhaSem.add(param.pollLast());
+        }
+    }
+
+    /* Seta o tipo de Mecanismo dos parâmentros */
+    public void mecParametros(Mecanismo mec){
+        /* auxNumParam - Controlar o numero de parametros */
+        auxNumParam = numeroEntradas - auxNumParam;
+        Parametro p;
+        LinkedList <Parametro> param = new LinkedList<Parametro>();
+
+        int i;
+        /*            
+        *  Retirar da pilha semântica e setar o tipo de macanismo e tipo do parametro
+        *  Usar uma pilha auxiliar
+        */
+        for( i = auxNumParam; i > 0; i--){
+            elemTab = (ElemTabSimb) pilhaSem.pollLast();               
+            p = (Parametro) elemTab.getInfoC();
+            p.setMec(mec);
+            p.setTipo(Tipo.INTEGER);
+            param.add(p);
+        }
+
+        /* Adicionar os parametros novamente */
+        for( i = auxNumParam; i > 0; i--){
+            pilhaSem.add(param.pollLast());
+        }
+
+        auxNumParam = numeroEntradas;
+    }
+
+    public void instanciaParametros(String id){
+        elemTab = new ElemTabSimb(id, nivel);
+        if(tabSimbolo.contains(elemTab)){
+            report_semantic_error ("Identificador <"+id+"> já declarado!");
+        }else{
+            numeroEntradas++;
+            elemTab.setInfoC(new Parametro());
+            tabSimbolo.add(elemTab);
+            pilhaSem.add(elemTab);
+        }
+    }
+    
+    public void inicioChamadaProc(String id){
+        elemTab = buscaSimbolo(id);
+        if(elemTab == null){
+            report_semantic_error ("Procedimento <"+id+"> não declarado!");
+        }else{
+            pilhaSem.add(Marca.CHAMADA_PROCEDIMENTO);
+            pilhaSem.add(elemTab);
+        }
+    }
+
+    public void empilhaIdentificador(String id){
+        elemTab = buscaSimbolo(id);
+        if(elemTab == null){
+            report_semantic_error ("Identificador <"+id+"> não declarado!");
+        }else{
+            pilhaSem.add(elemTab);
+        }
+    }
+
+    public void inicioIF(){
+        rotulo++;
+        mepa.append ("\tDSVF\tL"+rotulo+"\n");
+        pilhaSem.add (new Rotulo(rotulo));
+    }
+
+    public void fimIF(){
+        elemPilha = pilhaSem.pollLast();
+        mepa.append ("L"+((Rotulo)elemPilha).getRotulo()+":\tNADA\n");
+    }
+
+    public void inicioElse(){
+        rotulo++;
+        mepa.append ("\tDSVS\tL"+rotulo+"\n");
+        elemPilha = pilhaSem.pollLast();
+        mepa.append ("L"+((Rotulo)elemPilha).getRotulo()+":\tNADA\n");
+        pilhaSem.add (new Rotulo(rotulo));
+    }
+
+    public void inicioComRepetitivo(){
+        rotulo++;
+        mepa.append ("L"+rotulo+":\tNADA\n");
+        pilhaSem.add (new Rotulo(rotulo));
+    }
+
+    public void condicaoWhile(){
+        rotulo++;
+        mepa.append ("\tDSVF\tL"+rotulo+"\n");
+        pilhaSem.add (new Rotulo(rotulo));
+    }
+    
+    public void fimWhile(){
+        ultimoRotulo = (Rotulo) pilhaSem.pollLast();
+        elemPilha = pilhaSem.pollLast();
+        mepa.append ("\tDSVS\tL"+((Rotulo)elemPilha).getRotulo()+"\n");
+        mepa.append ("L"+ultimoRotulo.getRotulo()+":\tNADA\n");
+    }
+
+    public void condicaoRepeat(){
+        ultimoRotulo = (Rotulo) pilhaSem.pollLast();
+        mepa.append ("\tDSVF\tL"+ultimoRotulo.getRotulo()+"\n");
+    }
+
+    public void varAcesso(){
+        elemTab = (ElemTabSimb) pilhaSem.pollLast();
+        InfoComplementar infoC = elemTab.getInfoC();
+        if( infoC instanceof Array){
+            mepa.append ("\tCRCT\t"+((Array)infoC).getDeslocamento()+"\n");
+            mepa.append ("\tSUBT\n");
+            mepa.append ("\tCREL\t"+elemTab.getNivel()+","+((Array)infoC).getDeslocamento()+"\n");
+        }else{
+            mepa.append ("\tCRVL\t"+elemTab.getNivel()+","+((Variavel)infoC).getDeslocamento()+"\n");
+        }
+    }
 :};
 
 terminal 
@@ -301,12 +478,7 @@ bloco
     variaveis declaracao_de_funcoes_e_procendimentos
     corpo
     {:  
-        if(parser.pilhaSem.peekLast() instanceof VariaveisDeclaradas){
-            parser.elemPilha = parser.pilhaSem.pollLast();
-            parser.mepa.append("\tDMEM\t"+((VariaveisDeclaradas)parser.elemPilha).getQuantidade()+"\n");
-        }
-        parser.eliminaSimbolos(parser.nivel);
-        parser.nivel--;
+        parser.liberaMemoria();
     :}
 ;
 
@@ -314,9 +486,7 @@ variaveis
     ::=  /* vazio */
     | S_VAR 
     {: 
-        parser.contaVars = 0; 
-        parser.deslocamento = 0;
-        parser.pilhaSem.add(Marca.DECLARACAO_VARS);
+        parser.iniciaDecVars();
     :}
     declaracoes_de_vars
     {:
@@ -337,13 +507,7 @@ lista_de_constante
 definicao_de_constante
     ::= S_IDENTIF:id
     {:
-        parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
-        if(parser.tabSimbolo.contains(parser.elemTab)){
-            parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
-        }else{
-            parser.elemTab.setInfoC(new Variavel(parser.contaVars));
-            parser.tabSimbolo.add(parser.elemTab);
-        }
+        parser.instanciaIdentificador(id.toString());
     :}
      S_IGUAL expressao S_PONTOVG
 ;
@@ -409,16 +573,11 @@ declaracoes_de_vars
 declaracao_de_funcoes_e_procendimentos
     ::=  /*vazio*/
     | {:
-        parser.rotulo++;
-        parser.mepa.append ("\tDSVS\tL"+parser.rotulo+"\n");
-        parser.pilhaSem.add(new Rotulo(parser.rotulo));
+        parser.iniciaDecProcFunc();
       :}
     lista_de_declaracao_de_funcao_ou_procedimento S_PONTOVG
     {:
-        parser.elemPilha = parser.pilhaSem.pollLast();
-        if(parser.elemPilha instanceof Rotulo){
-          parser.mepa.append ("L"+((Rotulo)parser.elemPilha).getRotulo()+":\tNADA\n");
-        }
+        parser.finalizaDecProcFunc();
     :}
 ;
 
@@ -534,15 +693,7 @@ tipo_de_retorno
 chamada_funcao
     ::= S_IDENTIF:id
     {:
-        parser.elemTab = parser.buscaSimbolo(id.toString());
-        if(parser.elemTab == null){
-            parser.report_semantic_error ("Função <"+id+"> não declarada!");
-        }else{
-            parser.pilhaSem.add(parser.elemTab);
-            parser.pre_rotina = 1;
-            parser.numeroArgumentos = 0;
-            parser.mepa.append ("\tAMEM\t"+1+"\n");
-        }
+        parser.inicioChamadaFuncao(id.toString());
     :}
     parametros 
 ;
@@ -559,21 +710,7 @@ lista_formal_de_parametros
     :}
     S_FECHAPAR
     {:
-        int i;
-        Parametro p;
-        LinkedList<Parametro> param = new LinkedList<Parametro>();
-
-        //Setar deslocamento para os parametros
-        for(i = parser.numeroEntradas; i > 0; i--){            
-            p = (Parametro) parser.pilhaSem.pollLast();
-            p.setDeslocamento(-3-(parser.numeroEntradas-i));
-            param.add(p);
-        }
-
-        //Adicionar os parametros novamente
-        for( i = parser.numeroEntradas; i > 0; i--){
-            parser.pilhaSem.add(param.pollLast());
-        }
+        parser.deslocamentoParametros();
     :}
 ;
 
@@ -590,83 +727,25 @@ secao_de_parametros_formais
 parametro_por_valor
     ::= lista_de_parametros S_DOISPTOS S_IDENTIF
     {:
-        //auxNumParam - Controlar o numero de parametros
-        parser.auxNumParam = parser.numeroEntradas - parser.auxNumParam;
-        Parametro p;
-        LinkedList <Parametro> param = new LinkedList<Parametro>();
-
-        int i;
-        //Retirar da pilha semântica e setar o tipo de macanismo e tipo do parametro
-        //Usar uma pilha auxiliar
-        for( i = parser.auxNumParam; i > 0; i--){
-            parser.elemTab = (ElemTabSimb) parser.pilhaSem.pollLast();               
-            p = (Parametro) parser.elemTab.getInfoC();
-            p.setMec(Mecanismo.PAS_VAL);
-            p.setTipo(Tipo.INTEGER);
-            param.add(p);
-        }
-
-        //Adicionar os parametros novamente
-        for( i = parser.auxNumParam; i > 0; i--){
-            parser.pilhaSem.add(param.pollLast());
-        }
-
-        parser.auxNumParam = parser.numeroEntradas;
+        parser.mecParametros(Mecanismo.PAS_VAL);   
     :}
 ;
 
 parametro_por_referencia
     ::= S_VAR lista_de_parametros S_DOISPTOS S_IDENTIF
     {:
-        //auxNumParam - Controlar o numero de parametros
-        parser.auxNumParam = parser.numeroEntradas - parser.auxNumParam;
-        Parametro p;
-        LinkedList <Parametro> param = new LinkedList<Parametro>();
-
-        int i;
-        //Retirar da pilha semântica e setar o tipo de macanismo e tipo do parametro
-        //Usar uma pilha auxiliar
-        for( i = parser.auxNumParam; i > 0; i--){
-            parser.elemTab = (ElemTabSimb) parser.pilhaSem.pollLast();               
-            p = (Parametro) parser.elemTab.getInfoC();
-            p.setMec(Mecanismo.PAS_END);
-            p.setTipo(Tipo.INTEGER);
-            param.add(p);
-        }
-
-        //Adicionar os parametros novamente
-        for( i = parser.auxNumParam; i > 0; i--){
-            parser.pilhaSem.add(param.pollLast());
-        }
-
-        parser.auxNumParam = parser.numeroEntradas;
+        parser.mecParametros(Mecanismo.PAS_END);
     :}
 ;
 
 lista_de_parametros
     ::= lista_de_parametros S_VIRGULA S_IDENTIF:id
     {:
-        parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
-        if(parser.tabSimbolo.contains(parser.elemTab)){
-            parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
-        }else{
-            parser.numeroEntradas++;
-            parser.elemTab.setInfoC(new Parametro());
-            parser.tabSimbolo.add(parser.elemTab);
-            parser.pilhaSem.add(parser.elemTab);
-        }
+        parser.instanciaParametros(id.toString());
     :}
     | S_IDENTIF:id
     {:
-        parser.elemTab = new ElemTabSimb(id.toString(), parser.nivel);
-        if(parser.tabSimbolo.contains(parser.elemTab)){
-            parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
-        }else{
-            parser.numeroEntradas++;
-            parser.elemTab.setInfoC(new Parametro());
-            parser.tabSimbolo.add(parser.elemTab);
-            parser.pilhaSem.add(parser.elemTab);
-        }
+        parser.instanciaParametros(id.toString());
     :}
 ;
 
@@ -696,9 +775,6 @@ sequencia_comandos
 comando_sem_rotulo
     ::=  /* vazio */
     | chamada_comando_escrita
-        {:
-            parser.comandoEscrita();
-        :}
     | chamada_comando_leitura
         {:
             parser.comandoLeitura();
@@ -719,24 +795,12 @@ comando_sem_rotulo
 chamada_procedimento
     ::= S_IDENTIF:id
     {:
-        parser.elemTab = parser.buscaSimbolo(id.toString());
-        if(parser.elemTab == null){
-            parser.report_semantic_error ("Procedimento <"+id+"> não declarado!");
-        }else{
-            parser.pilhaSem.add(Marca.CHAMADA_PROCEDIMENTO);
-            parser.pilhaSem.add(parser.elemTab);
-        }
+        parser.inicioChamadaProc(id.toString());
     :}
     parametros
     | S_IDENTIF:id
     {:
-        parser.elemTab = parser.buscaSimbolo(id.toString());
-        if(parser.elemTab == null){
-            parser.report_semantic_error ("Procedimento <"+id+"> não declarado!");
-        }else{
-            parser.pilhaSem.add(Marca.CHAMADA_PROCEDIMENTO);
-            parser.pilhaSem.add(parser.elemTab);
-        }
+        parser.inicioChamadaProc(id.toString());
     :}
 ;
 
@@ -758,9 +822,12 @@ parametros_atuais
 chamada_comando_escrita
     ::= S_WRITE
     {:
-        parser.pilhaSem.add(Marca.COMANDO_ESCRITA);
+        parser.comando_escrita = 1;
     :}
     S_ABREPAR lista_de_expressoes S_FECHAPAR
+    {:
+        parser.comando_escrita = 0;
+    :}
 ;
 
 chamada_comando_leitura
@@ -773,8 +840,19 @@ chamada_comando_leitura
 
 lista_de_expressoes
     ::=  /* vazio */
-    | lista_de_expressoes S_VIRGULA expressao
+    | lista_de_expressoes S_VIRGULA 
+    expressao
+    {:
+        if(parser.comando_escrita == 1){
+            parser.mepa.append ("\tIMPR\n");
+        }
+    :}
     | expressao
+    {:
+        if(parser.comando_escrita == 1){
+            parser.mepa.append ("\tIMPR\n");
+        }
+    :}
 ;
 
 lista_de_variaveis
@@ -801,12 +879,7 @@ variavel_de_acesso
     ::= 
     S_IDENTIF:id
     {:
-        parser.elemTab = parser.buscaSimbolo(id.toString());
-        if(parser.elemTab == null){
-            parser.report_semantic_error ("Identificador <"+id+"> não declarado!");
-        }else{
-            parser.pilhaSem.add(parser.elemTab);
-        }
+        parser.empilhaIdentificador(id.toString());
     :}
     | variavel_indexada
 ;
@@ -833,16 +906,13 @@ condicional
     ::= S_IF
     expressao
     {:
-        parser.rotulo++;
-        parser.mepa.append ("\tDSVF\tL"+parser.rotulo+"\n");
-        parser.pilhaSem.add (new Rotulo(parser.rotulo));
+        parser.inicioIF();
     :}
     S_THEN
     comando_sem_rotulo
     alternativa_cond
     {:
-        parser.elemPilha = parser.pilhaSem.pollLast();
-        parser.mepa.append ("L"+((Rotulo)parser.elemPilha).getRotulo()+":\tNADA\n");
+        parser.fimIF();
     :}
 ;
 
@@ -850,11 +920,7 @@ alternativa_cond
     ::= /* vazio */
     | S_ELSE
     {:
-        parser.rotulo++;
-        parser.mepa.append ("\tDSVS\tL"+parser.rotulo+"\n");
-        parser.elemPilha = parser.pilhaSem.pollLast();
-        parser.mepa.append ("L"+((Rotulo)parser.elemPilha).getRotulo()+":\tNADA\n");
-        parser.pilhaSem.add (new Rotulo(parser.rotulo));
+        parser.inicioElse();
     :}
     comando_sem_rotulo
 ;
@@ -862,36 +928,26 @@ alternativa_cond
 repetitivo
     ::= S_WHILE
     {:
-        parser.rotulo++;
-        parser.mepa.append ("L"+parser.rotulo+":\tNADA\n");
-        parser.pilhaSem.add (new Rotulo(parser.rotulo));
+        parser.inicioComRepetitivo();
     :}
     expressao
     {:
-        parser.rotulo++;
-        parser.mepa.append ("\tDSVF\tL"+parser.rotulo+"\n");
-        parser.pilhaSem.add (new Rotulo(parser.rotulo));
+        parser.condicaoWhile();
     :}
     S_DO comando_sem_rotulo
     {:
-        parser.ultimoRotulo = (Rotulo) parser.pilhaSem.pollLast();
-        parser.elemPilha = parser.pilhaSem.pollLast();
-        parser.mepa.append ("\tDSVS\tL"+((Rotulo)parser.elemPilha).getRotulo()+"\n");
-        parser.mepa.append ("L"+parser.ultimoRotulo.getRotulo()+":\tNADA\n");
+        parser.fimWhile();
     :}
     |
     S_REPEAT
     {:
-        parser.rotulo++;
-        parser.mepa.append ("L"+parser.rotulo+":\tNADA\n");
-        parser.pilhaSem.add (new Rotulo(parser.rotulo));
+        parser.inicioComRepetitivo();
     :}
     sequencia_comandos
     S_UNTIL
     expressao
     {:
-        parser.ultimoRotulo = (Rotulo) parser.pilhaSem.pollLast();
-        parser.mepa.append ("\tDSVF\tL"+parser.ultimoRotulo.getRotulo()+"\n");
+        parser.condicaoRepeat();
     :}
 ;
 
@@ -964,15 +1020,7 @@ fator
     ::=
     variavel_de_acesso
     {:
-        parser.elemTab = (ElemTabSimb) parser.pilhaSem.pollLast();
-        InfoComplementar infoC = parser.elemTab.getInfoC();
-        if( infoC instanceof Array){
-            parser.mepa.append ("\tCRCT\t"+((Array)infoC).getDeslocamento()+"\n");
-            parser.mepa.append ("\tSUBT\n");
-            parser.mepa.append ("\tCREL\t"+parser.elemTab.getNivel()+","+((Array)infoC).getDeslocamento()+"\n");
-        }else{
-            parser.mepa.append ("\tCRVL\t"+parser.elemTab.getNivel()+","+((Variavel)infoC).getDeslocamento()+"\n");
-        }
+        parser.varAcesso();
     :}
     | S_NUMERO:numero
     {: 
