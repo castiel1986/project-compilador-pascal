@@ -22,6 +22,7 @@ parser code  {:
     int auxNumParam;
     int pre_rotina;
     int comando_escrita;
+    int comando_leitura;
     Rotulo ultimoRotulo;
     LinkedList<ElemPilhaSem> pilhaSem = new LinkedList<ElemPilhaSem>();
     ArrayList<ElemTabSimb> tabSimbolo = new ArrayList<ElemTabSimb>();
@@ -216,7 +217,7 @@ parser code  {:
 
     }
 
-    public void atribuicao(){
+    public void armazena(){
 
         elemTab = (ElemTabSimb) pilhaSem.pollLast();
         InfoComplementar infoC = elemTab.getInfoC();
@@ -228,7 +229,11 @@ parser code  {:
             }
         }else if(infoC instanceof Variavel){
             if(infoC instanceof Array){
-                mepa.append ("\tARME\t"+elemTab.getNivel()+","+((Array)infoC).getDeslocamento()+"\n");
+                if(comando_leitura == 1){
+                    mepa.append ("\tARLA\t"+elemTab.getNivel()+","+((Array)infoC).getDeslocamento()+"\n");
+                }else{
+                    mepa.append ("\tARME\t"+elemTab.getNivel()+","+((Array)infoC).getDeslocamento()+"\n");
+                }
             }else{    
                 mepa.append ("\tARMZ\t"+elemTab.getNivel()+","+((Variavel)infoC).getDeslocamento()+"\n");
             }
@@ -415,7 +420,7 @@ parser code  {:
         elemTab = (ElemTabSimb) pilhaSem.pollLast();
         InfoComplementar infoC = elemTab.getInfoC();
         if( infoC instanceof Array){
-            mepa.append ("\tCRCT\t"+((Array)infoC).getDeslocamento()+"\n");
+            mepa.append ("\tCRCT\t"+((Array)infoC).getLimInferior()+"\n");
             mepa.append ("\tSUBT\n");
             mepa.append ("\tCREL\t"+elemTab.getNivel()+","+((Array)infoC).getDeslocamento()+"\n");
         }else{
@@ -775,17 +780,16 @@ sequencia_comandos
 comando_sem_rotulo
     ::=  /* vazio */
     | chamada_comando_escrita
-    | chamada_comando_leitura
-        {:
-            parser.comandoLeitura();
-        :}
+    |   {: parser.comando_leitura = 1; :}
+        chamada_comando_leitura
+        {: parser.comando_leitura = 0; :}
     | chamada_procedimento
         {:
             parser.chamadaProcedimento();
         :}
     | atribuicao
         {:
-            parser.atribuicao();
+            parser.armazena();
         :}
     | composto
     | condicional
@@ -833,7 +837,7 @@ chamada_comando_escrita
 chamada_comando_leitura
     ::= S_READ
     {:
-        parser.pilhaSem.add(Marca.COMANDO_LEITURA);
+        //parser.pilhaSem.add(Marca.COMANDO_LEITURA);
     :}
     S_ABREPAR lista_de_variaveis S_FECHAPAR
 ;
@@ -857,8 +861,27 @@ lista_de_expressoes
 
 lista_de_variaveis
     ::=  /* vazio */
-    | lista_de_variaveis S_VIRGULA variavel_de_acesso
-    | variavel_de_acesso
+    | lista_de_variaveis S_VIRGULA {: parser.mepa.append("\tLEIT\n"); :}
+    variavel_de_acesso
+    {:
+        parser.elemTab = (ElemTabSimb) parser.pilhaSem.peekLast();
+        InfoComplementar infoC = parser.elemTab.getInfoC();
+        if( infoC instanceof Array){
+            parser.mepa.append ("\tCRCT\t"+((Array)infoC).getLimInferior()+"\n");
+            parser.mepa.append ("\tSUBT\n");
+        }
+        parser.armazena();
+    :}
+    | {: parser.mepa.append("\tLEIT\n"); :} variavel_de_acesso
+    {:
+        parser.elemTab = (ElemTabSimb) parser.pilhaSem.peekLast();
+        InfoComplementar infoC = parser.elemTab.getInfoC();
+        if( infoC instanceof Array){
+            parser.mepa.append ("\tCRCT\t"+((Array)infoC).getLimInferior()+"\n");
+            parser.mepa.append ("\tSUBT\n");
+        }
+        parser.armazena();
+    :}
 
 ;
 
@@ -868,7 +891,7 @@ atribuicao
         parser.elemTab = (ElemTabSimb) parser.pilhaSem.peekLast();
         InfoComplementar infoC = parser.elemTab.getInfoC();
         if( infoC instanceof Array){
-            parser.mepa.append ("\tCRCT\t"+((Array)infoC).getDeslocamento()+"\n");
+            parser.mepa.append ("\tCRCT\t"+((Array)infoC).getLimInferior()+"\n");
             parser.mepa.append ("\tSUBT\n");
         }
     :}
