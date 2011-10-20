@@ -22,6 +22,11 @@ public class Array extends Variavel{
         super(deslocamento);
         this.indiceArray = indiceArray;
     }
+    
+    public Array(int deslocamento, Tipo tipo, IndiceArray indiceArray, Mecanismo mecanismo) {
+        super(deslocamento, tipo, mecanismo);
+        this.indiceArray = indiceArray;
+    }
 
     public int getLimInferior() {
         return indiceArray.getLimInferior();
@@ -29,6 +34,14 @@ public class Array extends Variavel{
 
     public int getLimSuperior() {
         return this.indiceArray.getLimSuperior();
+    }
+    
+    public void setLimites(IndiceArray indiceArray){
+        this.indiceArray = indiceArray;
+    }
+    
+    public int getTamArray(){
+        return this.indiceArray.getLimSuperior() - this.indiceArray.getLimInferior() + 1;
     }
     
 }

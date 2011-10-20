@@ -16,13 +16,17 @@ parser code  {:
     int contaVars;
     int deslocamento;
     int numeroEntradas;
-    int numeroArgumentos;
     int rotulo;
     int nivel;
     int auxNumParam;
-    int pre_rotina;
     int comando_escrita;
     int comando_leitura;
+    
+    /* Variáveis de controle - Chamada de Procedimento e Função */
+    int chamada_rotina;           /* Valor 1 => uma chamada de rotina está sendo compilada */
+    int indiceParametro;               /* Indica qual parâmetro está sendo compilado */
+    ElemTabSimb elemRotina;          /* Instância do procedimento que está sendo compilado */
+
     Rotulo ultimoRotulo;
     LinkedList<ElemPilhaSem> pilhaSem = new LinkedList<ElemPilhaSem>();
     ArrayList<ElemTabSimb> tabSimbolo = new ArrayList<ElemTabSimb>();
@@ -90,35 +94,184 @@ parser code  {:
     }
 
     public void cabecalhoFuncao(){
-        //Obter tipo da funcao
-        Tipo tipo = (Tipo) pilhaSem.pollLast();
+        
+        int indice;
+        ListIterator it;
+        ArrayList<Variavel> parametros = null;
+        Funcao funcao;
+        ElemTabSimb elemFunc;
 
-        //Obter parametros caso tenha
-        Funcao func = new Funcao(rotulo, tipo, -3-numeroEntradas);
-        if(numeroEntradas > 0){
-            ListIterator it = pilhaSem.listIterator(pilhaSem.size() - numeroEntradas);
-            while(it.hasNext()){
-                func.addParametro((Parametro)it.next());
-                it.remove();
-            }
+        /* Posicionar indice no início da marca DECLARACAO_ROTINA */
+        indice = pilhaSem.indexOf(Marca.DECLARACAO_ROTINA);
+        it = pilhaSem.listIterator(indice);
+        it.next();
+        it.remove();
+
+        /* Desempilhar procedimento */
+        elemFunc = (ElemTabSimb) it.next();
+
+        /* Instaciar procedimento */
+        funcao = new Funcao(rotulo, -numeroEntradas - 3);
+
+        it.remove();
+        
+        if (numeroEntradas > 0) {
+            parametros = criaParametros(it);
         }
-        elemTab = (ElemTabSimb) pilhaSem.pollLast();
-        elemTab.setInfoC(func);
+        
+        /* Add o ArrayList de parâmetros */
+        funcao.setParametros(parametros);
+        
+        /* Adicionar procedimento na tabela de símbolos */
+        elemFunc.setInfoC(funcao);
+
+        funcao.setTipo((Tipo)pilhaSem.pollLast());
+
     }
 
     public void cabecalhoProcedimento(){
 
-        //Obter parametros caso tenha
-        Procedimento proc = new Procedimento(rotulo);
-        if(numeroEntradas > 0){
-            ListIterator it = pilhaSem.listIterator(pilhaSem.size() - numeroEntradas);
-            while(it.hasNext()){
-                proc.addParametro((Parametro)it.next());
+        int indice;
+        ListIterator it;
+        ArrayList<Variavel> parametros = null;
+        Procedimento procedimento;
+        ElemTabSimb elemProc;
+
+        /* Posicionar indice no início da marca DECLARACAO_ROTINA */
+        indice = pilhaSem.indexOf(Marca.DECLARACAO_ROTINA);
+        it = pilhaSem.listIterator(indice);
+        it.next();
+        it.remove();
+
+        /* Desempilhar procedimento */
+        elemProc = (ElemTabSimb) it.next();
+
+        /* Instaciar procedimento */
+        procedimento = new Procedimento(rotulo);
+
+        it.remove();
+        
+        if (numeroEntradas > 0) {
+            parametros = criaParametros(it);
+        }
+        
+        /* Add o ArrayList de parâmetros */
+        procedimento.setParametros(parametros);
+        
+        /* Adicionar procedimento na tabela de símbolos */
+        elemProc.setInfoC(procedimento);
+    }
+
+    /* Cria um ArrayList de parâmetros */
+    public ArrayList<Variavel> criaParametros(ListIterator it){
+        
+        ArrayList<ElemTabSimb> listId;
+        ArrayList<Variavel> parametros;
+        Mecanismo mec;
+        InfoComplementar infoC;
+        int aux;
+        
+        aux = -numeroEntradas - 2;
+        parametros = new ArrayList<Variavel>();    
+
+        for (int i = 0; i < numeroEntradas;) {
+
+            /* Desempilhar tipo do Mecanismo */
+            listId = new ArrayList<ElemTabSimb>();
+            if(elemPilha instanceof Mecanismo){
+                mec = (Mecanismo) elemPilha;
+            }else{
+                mec = (Mecanismo) it.next();
+            }
+            it.remove();
+
+            /* Desempilhar lista de identificadores */
+            while ( it.hasNext() && (elemPilha = (ElemPilhaSem) it.next()) instanceof ElemTabSimb) {
+                elemTab = (ElemTabSimb) elemPilha;
+                listId.add(elemTab);
+                it.remove();
+                i++;
+            }
+
+            /* Setar os atributos dos parâmetros */
+            Variavel param;
+            for (int j = 0; j < listId.size(); j++) {
+
+                /* Verificar se é Array */
+                if (elemPilha instanceof IndiceArray) {
+                    /* Setar limites do Array*/
+                    infoC = new Array(aux, Tipo.INTEGER, (IndiceArray)elemPilha, mec);
+                    parametros.add((Array) infoC);
+                }else{
+                    infoC = new Variavel(aux, Tipo.INTEGER, mec);
+                    parametros.add((Variavel) infoC);
+                }
+
+                aux++;                    
+                /* Inserir parâmetro na tabela de símbolos*/
+                listId.get(j).setInfoC(infoC);
+                tabSimbolo.add(listId.get(j));
+
+            }
+
+            if (elemPilha instanceof IndiceArray) {
                 it.remove();
             }
+
         }
+
+        return parametros;
+
+    }
+
+    public void analisaParametro(){
+        
+        Variavel param = null, arg;
+        Funcao f;
+        Procedimento p;
+        boolean error = false;
+
         elemTab = (ElemTabSimb) pilhaSem.pollLast();
-        elemTab.setInfoC(proc);
+
+        if (elemRotina.getInfoC() instanceof Funcao) {
+            f = (Funcao) elemRotina.getInfoC();
+
+            if (indiceParametro >= f.getNumParam()) {
+                error = true;
+            } else {
+                param = f.getParametro(indiceParametro);
+            }
+        } else {
+            p = (Procedimento) elemRotina.getInfoC();
+
+            if (indiceParametro >= p.getNumParam()) {
+                error = true;
+            } else {
+                param = p.getParametro(indiceParametro);
+            }
+        }
+
+        arg = (Variavel) elemTab.getInfoC();
+
+        /* Verificação de tipos na chamada de uma rotina */
+
+        if (error) {
+            report_semantic_error("Número de argumentos inválidos!");
+        } else if (param.getTipo() == arg.getTipo() && arg.getClass() == param.getClass()) {
+            if (param.getMecanismo() == Mecanismo.PAS_VAL) {
+                
+                if(elemTab.getInfoC() instanceof Array){
+                    mepa.append("\tCRVA\t" + elemTab.getNivel() + "," + arg.getDeslocamento() + ", " + ((Array)arg).getTamArray() +"\n");
+                }else{
+                    mepa.append("\tCRVL\t" + elemTab.getNivel() + "," + arg.getDeslocamento() + "\n");
+                }
+                
+            } else {
+                mepa.append("\tCREN\t" + elemTab.getNivel() + "," + arg.getDeslocamento() + "\n");
+            }
+        } else {
+            report_semantic_error("Tipos incompatíveis!");
+        }
     }
 
     public void verificaLimiteArray (String limI, String limS){
@@ -157,14 +310,14 @@ parser code  {:
                 if(indice+1 < pilhaSem.size() && pilhaSem.get(indice+1) instanceof IndiceArray){
                     pilhaSem.remove(indice);
                     IndiceArray indAr = (IndiceArray) pilhaSem.get(indice);
-                    elemTab.setInfoC(new Array(deslocamento, indAr));
+                    elemTab.setInfoC(new Array(deslocamento, Tipo.INTEGER, indAr));
                     tabSimbolo.add(elemTab);
                     pilhaSem.remove(indice);
                     
                     /* Ajustar deslocamento */
                     deslocamento += indAr.getLimSuperior() - indAr.getLimInferior() + 1;
                 }else{
-                    elemTab.setInfoC(new Variavel(deslocamento++));
+                    elemTab.setInfoC(new Variavel(deslocamento++, Tipo.INTEGER));
                     tabSimbolo.add(elemTab);
                     pilhaSem.remove(indice);
                 }
@@ -183,59 +336,52 @@ parser code  {:
         pilhaSem.remove(indice);
         elemTab = (ElemTabSimb) pilhaSem.remove(indice);
         Procedimento proc = (Procedimento) elemTab.getInfoC();
-        mepa.append ("\tCHPR\t"+"L"+proc.getRotulo()+"\n");
-    }
-
-    public void comandoLeitura(){
-
-        /* Posicionar indice no início do comando de leitura */
-        int indice = pilhaSem.indexOf(Marca.COMANDO_LEITURA);
-        pilhaSem.remove(indice);
-        ListIterator lisIt = pilhaSem.listIterator(indice);    
-
-        while(lisIt.hasNext()){
-            elemTab = (ElemTabSimb) lisIt.next();
-            lisIt.remove();
-            InfoComplementar infoC = elemTab.getInfoC();
-            
-            mepa.append ("\tLEIT\n");
-            if( infoC instanceof Parametro){
-                if(((Parametro)infoC).getMec() == Mecanismo.PAS_END){
-                    mepa.append ("\tARMI\t"+ elemTab.getNivel()+","+((Parametro)infoC).getDeslocamento()+"\n");
-                }else{
-                    mepa.append ("\tARMZ\t"+ elemTab.getNivel()+","+((Parametro)infoC).getDeslocamento()+"\n");
-                }
-            }else if(infoC instanceof Variavel){
-                if(infoC instanceof Array){
-                    mepa.append ("\tARME\t"+elemTab.getNivel()+","+((Array)infoC).getDeslocamento()+"\n");
-                }else{    
-                    mepa.append ("\tARMZ\t"+elemTab.getNivel()+","+((Variavel)infoC).getDeslocamento()+"\n");
-                }
-            }
-           
+        if(proc.getNumParam() > indiceParametro){
+            report_semantic_error("Número de argumentos inválidos!");
+        }else{
+            mepa.append ("\tCHPR\t"+"L"+proc.getRotulo()+"\n");
         }
-
     }
 
     public void armazena(){
 
         elemTab = (ElemTabSimb) pilhaSem.pollLast();
         InfoComplementar infoC = elemTab.getInfoC();
-        if( infoC instanceof Parametro){
-            if(((Parametro)infoC).getMec() == Mecanismo.PAS_END){
-                mepa.append ("\tARMI\t"+ elemTab.getNivel()+","+((Parametro)infoC).getDeslocamento()+"\n");
-            }else{
-                mepa.append ("\tARMZ\t"+ elemTab.getNivel()+","+((Parametro)infoC).getDeslocamento()+"\n");
+        Variavel v;
+
+        if( infoC instanceof Array){
+
+            v = (Array)infoC;
+            /* Verificar se é parâmetro */
+            if(v.isParametro()){
+                if(v.getMecanismo() == Mecanismo.PAS_END){
+
+                    /* Verificar se está sendo compilado um comando de leitura */
+                    if(comando_leitura == 1){
+                        mepa.append ("\tALAI\t"+elemTab.getNivel()+","+ v.getDeslocamento()+"\n");
+                    }else{
+                        mepa.append ("\tARAI\t"+elemTab.getNivel()+","+ v.getDeslocamento()+"\n");
+                    }
+
+                }//else{
+                    //mepa.append ("\tARME\t"+elemTab.getNivel()+","+ v.getDeslocamento()+"\n");
+                //}
+            }else {
+                if(comando_leitura == 1){
+                    mepa.append ("\tARLA\t"+elemTab.getNivel()+","+ v.getDeslocamento()+"\n");
+                }else{
+                    mepa.append ("\tARME\t"+elemTab.getNivel()+","+ v.getDeslocamento()+"\n");
+                }
             }
         }else if(infoC instanceof Variavel){
-            if(infoC instanceof Array){
-                if(comando_leitura == 1){
-                    mepa.append ("\tARLA\t"+elemTab.getNivel()+","+((Array)infoC).getDeslocamento()+"\n");
-                }else{
-                    mepa.append ("\tARME\t"+elemTab.getNivel()+","+((Array)infoC).getDeslocamento()+"\n");
+
+            v = (Variavel)infoC;
+            if(v.isParametro()){
+                if(v.getMecanismo() == Mecanismo.PAS_END){
+                    mepa.append ("\tARMI\t"+ elemTab.getNivel()+","+ v.getDeslocamento()+"\n");
                 }
             }else{    
-                mepa.append ("\tARMZ\t"+elemTab.getNivel()+","+((Variavel)infoC).getDeslocamento()+"\n");
+                mepa.append ("\tARMZ\t"+elemTab.getNivel()+","+ v.getDeslocamento()+"\n");
             }
         }else if(infoC instanceof Funcao){
             mepa.append ("\tARMZ\t"+(elemTab.getNivel()+1)+","+((Funcao)infoC).getDeslocamento()+"\n");
@@ -289,57 +435,10 @@ parser code  {:
             report_semantic_error ("Função <"+id+"> não declarada!");
         }else{
             pilhaSem.add(elemTab);
-            pre_rotina = 1;
-            numeroArgumentos = 0;
+            elemRotina = elemTab;
+            chamada_rotina = 1;
             mepa.append ("\tAMEM\t"+1+"\n");
         }
-    }
-
-    /* Setar deslocamento para os parâmetros */
-    public void deslocamentoParametros(){
-        int i;
-        Parametro p;
-        LinkedList<Parametro> param = new LinkedList<Parametro>();
-
-        /* Setar deslocamento para os parametros */
-        for(i = numeroEntradas; i > 0; i--){            
-            p = (Parametro) pilhaSem.pollLast();
-            p.setDeslocamento(-3-(numeroEntradas-i));
-            param.add(p);
-        }
-
-        /* Adicionar os parametros novamente */
-        for( i = numeroEntradas; i > 0; i--){
-            pilhaSem.add(param.pollLast());
-        }
-    }
-
-    /* Seta o tipo de Mecanismo dos parâmentros */
-    public void mecParametros(Mecanismo mec){
-        /* auxNumParam - Controlar o numero de parametros */
-        auxNumParam = numeroEntradas - auxNumParam;
-        Parametro p;
-        LinkedList <Parametro> param = new LinkedList<Parametro>();
-
-        int i;
-        /*            
-        *  Retirar da pilha semântica e setar o tipo de macanismo e tipo do parametro
-        *  Usar uma pilha auxiliar
-        */
-        for( i = auxNumParam; i > 0; i--){
-            elemTab = (ElemTabSimb) pilhaSem.pollLast();               
-            p = (Parametro) elemTab.getInfoC();
-            p.setMec(mec);
-            p.setTipo(Tipo.INTEGER);
-            param.add(p);
-        }
-
-        /* Adicionar os parametros novamente */
-        for( i = auxNumParam; i > 0; i--){
-            pilhaSem.add(param.pollLast());
-        }
-
-        auxNumParam = numeroEntradas;
     }
 
     public void instanciaParametros(String id){
@@ -348,8 +447,6 @@ parser code  {:
             report_semantic_error ("Identificador <"+id+"> já declarado!");
         }else{
             numeroEntradas++;
-            elemTab.setInfoC(new Parametro());
-            tabSimbolo.add(elemTab);
             pilhaSem.add(elemTab);
         }
     }
@@ -361,6 +458,7 @@ parser code  {:
         }else{
             pilhaSem.add(Marca.CHAMADA_PROCEDIMENTO);
             pilhaSem.add(elemTab);
+            elemRotina = elemTab;
         }
     }
 
@@ -419,12 +517,25 @@ parser code  {:
     public void varAcesso(){
         elemTab = (ElemTabSimb) pilhaSem.pollLast();
         InfoComplementar infoC = elemTab.getInfoC();
-        if( infoC instanceof Array){
-            mepa.append ("\tCRCT\t"+((Array)infoC).getLimInferior()+"\n");
-            mepa.append ("\tSUBT\n");
-            mepa.append ("\tCREL\t"+elemTab.getNivel()+","+((Array)infoC).getDeslocamento()+"\n");
-        }else{
-            mepa.append ("\tCRVL\t"+elemTab.getNivel()+","+((Variavel)infoC).getDeslocamento()+"\n");
+        Variavel v;
+
+        if (infoC instanceof Array) {
+            
+            v = (Array)infoC;
+            /* Verificar se é parâmetro */
+            if(v.isParametro()){
+                if(v.getMecanismo() == Mecanismo.PAS_END){
+                    mepa.append("\tCRCT\t" + ((Array)v).getLimInferior() + "\n");
+                    mepa.append("\tSUBT\n");
+                    mepa.append ("\tCREI\t"+elemTab.getNivel()+","+ v.getDeslocamento()+"\n");
+                }
+            }else{
+                mepa.append("\tCRCT\t" + ((Array)v).getLimInferior() + "\n");
+                mepa.append("\tSUBT\n");
+                mepa.append("\tCREL\t" + elemTab.getNivel() + "," + v.getDeslocamento() + "\n");
+            }
+        } else {
+            mepa.append("\tCRVL\t" + elemTab.getNivel() + "," + ((Variavel) infoC).getDeslocamento() + "\n");            
         }
     }
 :};
@@ -464,27 +575,19 @@ start with programa;
 
 programa 
     ::=
-    {: 
-        parser.mepa.append ("\tINPP\n"); 
-    :}
+    {: parser.mepa.append ("\tINPP\n"); :}
     S_PROGRAM S_IDENTIF S_PONTOVG bloco S_PONTO
-    {: 
-        parser.mepa.append ("\tPARA\n\tFIM\n");
-    :}
+    {: parser.mepa.append ("\tPARA\n\tFIM\n"); :}
 ;
 
 bloco
     ::= 
-    {: 
-        parser.nivel++; 
-    :}
+    {: parser.nivel++; :}
     declaracao_de_constante
     declaracao_de_tipo
     variaveis declaracao_de_funcoes_e_procendimentos
     corpo
-    {:  
-        parser.liberaMemoria();
-    :}
+    {: parser.liberaMemoria(); :}
 ;
 
 variaveis
@@ -617,7 +720,7 @@ declaracao_de_procedimento
     :}
     S_PONTOVG bloco
     {:
-        parser.mepa.append ("\tRTPR\t"+(parser.nivel+1)+", "+parser.numeroEntradas+"\n");
+        parser.mepa.append ("\tRTPR\t"+(parser.nivel+1)+","+parser.numeroEntradas+"\n");
     :}
 ;
 
@@ -629,6 +732,7 @@ cabecalho_procedimento
             parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
         }else{
             parser.tabSimbolo.add(parser.elemTab);
+            parser.pilhaSem.add(Marca.DECLARACAO_ROTINA);
             parser.pilhaSem.add(parser.elemTab);
         }
     :}
@@ -639,6 +743,7 @@ cabecalho_procedimento
             parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
         }else{
             parser.tabSimbolo.add(parser.elemTab);
+            parser.pilhaSem.add(Marca.DECLARACAO_ROTINA);
             parser.pilhaSem.add(parser.elemTab);
         }
     :}
@@ -669,6 +774,7 @@ cabecalho_funcao
             parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
         }else{
             parser.tabSimbolo.add(parser.elemTab);
+            parser.pilhaSem.add(Marca.DECLARACAO_ROTINA);
             parser.pilhaSem.add(parser.elemTab);
         }
     :}
@@ -681,6 +787,7 @@ cabecalho_funcao
             parser.report_semantic_error ("Identificador <"+id+"> já declarado!");
         }else{
             parser.tabSimbolo.add(parser.elemTab);
+            parser.pilhaSem.add(Marca.DECLARACAO_ROTINA);
             parser.pilhaSem.add(parser.elemTab);
         }
     :}
@@ -714,9 +821,6 @@ lista_formal_de_parametros
         parser.nivel--;
     :}
     S_FECHAPAR
-    {:
-        parser.deslocamentoParametros();
-    :}
 ;
 
 secao_lista_de_parametros_formais
@@ -730,17 +834,19 @@ secao_de_parametros_formais
 ;
 
 parametro_por_valor
-    ::= lista_de_parametros S_DOISPTOS S_IDENTIF
+    ::= 
     {:
-        parser.mecParametros(Mecanismo.PAS_VAL);   
+        parser.pilhaSem.add(Mecanismo.PAS_VAL);
     :}
+    lista_de_parametros S_DOISPTOS denotacao_de_tipo
 ;
 
 parametro_por_referencia
-    ::= S_VAR lista_de_parametros S_DOISPTOS S_IDENTIF
+    ::= 
     {:
-        parser.mecParametros(Mecanismo.PAS_END);
+        parser.pilhaSem.add(Mecanismo.PAS_END);
     :}
+    S_VAR lista_de_parametros S_DOISPTOS denotacao_de_tipo
 ;
 
 lista_de_parametros
@@ -786,6 +892,7 @@ comando_sem_rotulo
     | chamada_procedimento
         {:
             parser.chamadaProcedimento();
+            parser.chamada_rotina = 0;
         :}
     | atribuicao
         {:
@@ -799,6 +906,8 @@ comando_sem_rotulo
 chamada_procedimento
     ::= S_IDENTIF:id
     {:
+        parser.chamada_rotina = 1;
+        parser.indiceParametro = 0;      
         parser.inicioChamadaProc(id.toString());
     :}
     parametros
@@ -814,7 +923,13 @@ parametros
 
 lista_de_parametros_atuais
     ::= lista_de_parametros_atuais S_VIRGULA parametros_atuais
+    {:
+        parser.indiceParametro++;
+    :}
     | parametros_atuais
+    {:
+        parser.indiceParametro++;
+    :}
 ;
 
 parametros_atuais
@@ -888,11 +1003,10 @@ lista_de_variaveis
 atribuicao
     ::= variavel_de_acesso
     {:
-        parser.elemTab = (ElemTabSimb) parser.pilhaSem.peekLast();
         InfoComplementar infoC = parser.elemTab.getInfoC();
-        if( infoC instanceof Array){
-            parser.mepa.append ("\tCRCT\t"+((Array)infoC).getLimInferior()+"\n");
-            parser.mepa.append ("\tSUBT\n");
+        if (infoC instanceof Array) {
+            parser.mepa.append("\tCRCT\t" + ((Array) infoC).getLimInferior() + "\n");
+            parser.mepa.append("\tSUBT\n");
         }
     :}
     S_ATRIBUI expressao
@@ -1043,7 +1157,11 @@ fator
     ::=
     variavel_de_acesso
     {:
-        parser.varAcesso();
+        if(parser.chamada_rotina == 1){
+            parser.analisaParametro();
+        }else{
+            parser.varAcesso();
+        }
     :}
     | S_NUMERO:numero
     {: 
@@ -1051,8 +1169,8 @@ fator
     :}
     | chamada_funcao
     {:
-        parser.pre_rotina = 0;
-        parser.numeroArgumentos = 0;
+        parser.chamada_rotina = 0;
+        parser.indiceParametro = 0;
         parser.elemTab = (ElemTabSimb) parser.pilhaSem.pollLast();
         Funcao func = (Funcao) parser.elemTab.getInfoC();
         parser.mepa.append ("\tCHPR\t"+"L"+func.getRotulo()+"\n");
