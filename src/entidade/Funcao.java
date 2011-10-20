@@ -1,7 +1,6 @@
 package entidade;
 
 
-import entidade.ElemPilhaSem;
 import java.util.ArrayList;
 
 /*
@@ -18,13 +17,18 @@ public class Funcao implements InfoComplementar, ElemPilhaSem{
     private int rotulo;
     private Tipo tipo;
     private int deslocamento;
-    private ArrayList<Parametro> parametros;
+    private ArrayList<Variavel> parametros;
 
     public Funcao(int rotulo, Tipo tipo, int deslocamento) {
         this.rotulo = rotulo;
         this.tipo = tipo;
         this.deslocamento = deslocamento;
-        this.parametros = new ArrayList<Parametro>();
+        this.parametros = new ArrayList<Variavel>();
+    }
+    
+    public Funcao(int rotulo, int deslocamento) {
+        this.rotulo = rotulo;
+        this.deslocamento = deslocamento;
     }
 
     public int getDeslocamento() {
@@ -51,12 +55,23 @@ public class Funcao implements InfoComplementar, ElemPilhaSem{
         this.tipo = tipo;
     }
     
-    public void addParametro(Parametro parametro) {
+    public void setParametros(ArrayList<Variavel> parametros) {
+        this.parametros = parametros;
+    }
+    
+    public void addParametro(Variavel parametro) {
         this.parametros.add(parametro);
     }
     
-    public Parametro getParametro(int index){
+    public Variavel getParametro(int index){
         return parametros.get(index);
     }
     
+    public ArrayList<Variavel> getParametros() {
+        return parametros;
+    }
+    
+    public int getNumParam(){     
+        return this.parametros.size();
+    }
 }
