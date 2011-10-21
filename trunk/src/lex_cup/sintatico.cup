@@ -200,7 +200,9 @@ parser code  {:
                 /* Verificar se é Array */
                 if (elemPilha instanceof IndiceArray) {
                     /* Setar limites do Array*/
+                    aux = aux - ( ((IndiceArray)elemPilha).getLimSuperior() - ((IndiceArray)elemPilha).getLimInferior() );
                     infoC = new Array(aux, Tipo.INTEGER, (IndiceArray)elemPilha, mec);
+                    aux += ((IndiceArray)elemPilha).getLimSuperior() - ((IndiceArray)elemPilha).getLimInferior();
                     parametros.add((Array) infoC);
                 }else{
                     infoC = new Variavel(aux, Tipo.INTEGER, mec);
@@ -261,7 +263,7 @@ parser code  {:
             if (param.getMecanismo() == Mecanismo.PAS_VAL) {
                 
                 if(elemTab.getInfoC() instanceof Array){
-                    mepa.append("\tCRVA\t" + elemTab.getNivel() + "," + arg.getDeslocamento() + ", " + ((Array)arg).getTamArray() +"\n");
+                    mepa.append("\tCRVA\t" + elemTab.getNivel() + "," + arg.getDeslocamento() + "," + ((Array)arg).getTamArray() +"\n");
                 }else{
                     mepa.append("\tCRVL\t" + elemTab.getNivel() + "," + arg.getDeslocamento() + "\n");
                 }
@@ -360,12 +362,12 @@ parser code  {:
                     if(comando_leitura == 1){
                         mepa.append ("\tALAI\t"+elemTab.getNivel()+","+ v.getDeslocamento()+"\n");
                     }else{
-                        mepa.append ("\tARAI\t"+elemTab.getNivel()+","+ v.getDeslocamento()+"\n");
+                        mepa.append ("\tARAI\t"+elemTab.getNivel()+","+ (v.getDeslocamento()+ ((Array)v).getTamArray() - 1)+"\n");
                     }
 
-                }//else{
-                    //mepa.append ("\tARME\t"+elemTab.getNivel()+","+ v.getDeslocamento()+"\n");
-                //}
+                }else{
+                    mepa.append ("\tARLA\t"+elemTab.getNivel()+","+ v.getDeslocamento()+"\n");
+                }
             }else {
                 if(comando_leitura == 1){
                     mepa.append ("\tARLA\t"+elemTab.getNivel()+","+ v.getDeslocamento()+"\n");
@@ -379,6 +381,8 @@ parser code  {:
             if(v.isParametro()){
                 if(v.getMecanismo() == Mecanismo.PAS_END){
                     mepa.append ("\tARMI\t"+ elemTab.getNivel()+","+ v.getDeslocamento()+"\n");
+                }else{
+                    mepa.append ("\tARMZ\t"+elemTab.getNivel()+","+ v.getDeslocamento()+"\n");
                 }
             }else{    
                 mepa.append ("\tARMZ\t"+elemTab.getNivel()+","+ v.getDeslocamento()+"\n");
@@ -523,15 +527,15 @@ parser code  {:
             
             v = (Array)infoC;
             /* Verificar se é parâmetro */
+            mepa.append("\tCRCT\t" + ((Array)v).getLimInferior() + "\n");
+            mepa.append("\tSUBT\n");
             if(v.isParametro()){
-                if(v.getMecanismo() == Mecanismo.PAS_END){
-                    mepa.append("\tCRCT\t" + ((Array)v).getLimInferior() + "\n");
-                    mepa.append("\tSUBT\n");
-                    mepa.append ("\tCREI\t"+elemTab.getNivel()+","+ v.getDeslocamento()+"\n");
+                if(v.getMecanismo() == Mecanismo.PAS_END){  
+                    mepa.append("\tCREI\t"+elemTab.getNivel()+","+ v.getDeslocamento()+"\n");
+                }else{
+                    mepa.append("\tCREL\t" + elemTab.getNivel() + "," + v.getDeslocamento() + "\n");
                 }
             }else{
-                mepa.append("\tCRCT\t" + ((Array)v).getLimInferior() + "\n");
-                mepa.append("\tSUBT\n");
                 mepa.append("\tCREL\t" + elemTab.getNivel() + "," + v.getDeslocamento() + "\n");
             }
         } else {
