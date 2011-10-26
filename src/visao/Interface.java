@@ -45,7 +45,7 @@ public class Interface extends javax.swing.JFrame {
     public Interface() {
         initComponents();
         this.setLocation(683 - (this.getWidth() / 2), (384 - ((this.getHeight() / 2) + 50)));
-        this.jTAFonte.setText("program exemplo;\nvar a : integer;\nbegin\n   read(a);\n   write(a);\nend.");
+        this.jTAFonte.setText("program testeproc;\n   var x, y : integer;\nbegin\n   y := 10;\n   x := y + 2 * 10;\n   write(x);\nend. ");
     }
 
     // <editor-fold defaultstate="collapsed" desc="Generated Code">                          

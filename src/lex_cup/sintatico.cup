@@ -299,30 +299,60 @@ parser code  {:
             int tamanhoPilha = pilhaSem.size();
             pilhaSem.remove(indice);
             
-            for(int i = 0; i < contaVars ; i++){
-                
-                elemPilha = pilhaSem.get(indice);
-                elemTab = (ElemTabSimb) elemPilha;
+            ArrayList<ElemTabSimb> variaveis;
+            Tipo tipo;
+            IndiceArray indAr;
 
-                if(tabSimbolo.contains(elemTab)){
-                    report_semantic_error ("Identificador <"+elemTab.getNome()+"> já declarado!");
+            for(int i = 0; i < contaVars ; ){
+
+                variaveis = new ArrayList<ElemTabSimb>();
+                tipo = null;
+                indAr = null;
+
+                /* Desempilha a lista de identificadores */
+                while((elemPilha = pilhaSem.get(indice)) instanceof ElemTabSimb){
+                    elemTab = (ElemTabSimb) elemPilha;
+                    variaveis.add(elemTab);
+                    i++;
+                    pilhaSem.remove(indice);
                 }
+
+                elemPilha = pilhaSem.get(indice);
+                pilhaSem.remove(indice);
 
                 /* Tratar declação de array */    
-                if(indice+1 < pilhaSem.size() && pilhaSem.get(indice+1) instanceof IndiceArray){
+                if(elemPilha instanceof IndiceArray){
+                    indAr = (IndiceArray) elemPilha;
+                    elemPilha = pilhaSem.get(indice);
                     pilhaSem.remove(indice);
-                    IndiceArray indAr = (IndiceArray) pilhaSem.get(indice);
-                    elemTab.setInfoC(new Array(deslocamento, Tipo.INTEGER, indAr));
-                    tabSimbolo.add(elemTab);
-                    pilhaSem.remove(indice);
-                    
+                    tipo = (Tipo) elemPilha;                    
                     /* Ajustar deslocamento */
-                    deslocamento += indAr.getLimSuperior() - indAr.getLimInferior() + 1;
                 }else{
-                    elemTab.setInfoC(new Variavel(deslocamento++, Tipo.INTEGER));
-                    tabSimbolo.add(elemTab);
-                    pilhaSem.remove(indice);
+                    tipo = (Tipo) elemPilha;
                 }
+
+                /* Setar os atributos das variáveis declaradas */
+                if(indAr != null){
+                    for(int j = 0; j < variaveis.size(); j++){
+                        variaveis.get(j).setInfoC(new Array(deslocamento, tipo, indAr));
+                        deslocamento += indAr.getLimSuperior() - indAr.getLimInferior() + 1;
+                        if (tabSimbolo.contains(variaveis.get(j))) {
+                            report_semantic_error("Identificador <" + elemTab.getNome() + "> já declarado!");
+                        } else {
+                            tabSimbolo.add(variaveis.get(j));
+                        }
+                    }                  
+                }else{
+                    for(int j = 0; j < variaveis.size(); j++){
+                        variaveis.get(j).setInfoC(new Variavel(deslocamento++, tipo));
+                        if (tabSimbolo.contains(variaveis.get(j))) {
+                            report_semantic_error("Identificador <" + elemTab.getNome() + "> já declarado!");
+                        } else {
+                            tabSimbolo.add(variaveis.get(j));
+                        }
+                    }
+                }
+                
             }
             
             mepa.append ("\tAMEM\t"+(deslocamento)+"\n");
@@ -542,6 +572,24 @@ parser code  {:
             mepa.append("\tCRVL\t" + elemTab.getNivel() + "," + ((Variavel) infoC).getDeslocamento() + "\n");            
         }
     }
+
+    public void iniciaTabSimb(){
+
+        InfoComplementar inf;
+        
+        /*Adicionar tipos pré-definidos na tabela de símbolos*/
+
+        elemTab = new ElemTabSimb("INTEGER",-1);
+        inf = Tipo.INTEGER;
+        elemTab.setInfoC(inf);
+        tabSimbolo.add(elemTab);
+
+        elemTab = new ElemTabSimb("BOOLEAN",-1);
+        inf = Tipo.BOOLEAN;
+        elemTab.setInfoC(inf);
+        tabSimbolo.add(elemTab);
+
+    }
 :};
 
 terminal 
@@ -579,9 +627,14 @@ start with programa;
 
 programa 
     ::=
-    {: parser.mepa.append ("\tINPP\n"); :}
+    {: 
+        parser.mepa.append ("\tINPP\n");
+        parser.iniciaTabSimb();
+    :}
     S_PROGRAM S_IDENTIF S_PONTOVG bloco S_PONTO
-    {: parser.mepa.append ("\tPARA\n\tFIM\n"); :}
+    {: 
+        parser.mepa.append ("\tPARA\n\tFIM\n"); 
+    :}
 ;
 
 bloco
@@ -589,7 +642,8 @@ bloco
     {: parser.nivel++; :}
     declaracao_de_constante
     declaracao_de_tipo
-    variaveis declaracao_de_funcoes_e_procendimentos
+    variaveis
+    declaracao_de_funcoes_e_procendimentos
     corpo
     {: parser.liberaMemoria(); :}
 ;
@@ -640,7 +694,15 @@ definicao_de_tipo
 
 denotacao_de_tipo
     ::= 
-    S_IDENTIF
+    S_IDENTIF: id
+    {:
+        parser.elemTab = parser.buscaSimbolo(id.toString().toUpperCase());
+        if(parser.elemTab == null){
+            parser.report_semantic_error ("Tipo <"+id+"> não definido!");
+        }else{
+            parser.pilhaSem.add((Tipo)parser.elemTab.getInfoC());
+        }
+    :}
     | novo_tipo
 ;
 

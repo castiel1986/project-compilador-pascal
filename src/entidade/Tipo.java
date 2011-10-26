@@ -1,8 +1,5 @@
 package entidade;
 
-
-import entidade.ElemPilhaSem;
-
 /*
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
@@ -14,8 +11,8 @@ import entidade.ElemPilhaSem;
  *
  * @author Everton
  */
-public enum Tipo implements ElemPilhaSem{
+public enum Tipo implements ElemPilhaSem, InfoComplementar{
 
-    INTEGER, BOLLEAN, REAL
+    INTEGER, BOOLEAN
 
 }
