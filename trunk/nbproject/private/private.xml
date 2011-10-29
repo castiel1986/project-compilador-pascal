@@ -2,6 +2,12 @@
 <project-private xmlns="http://www.netbeans.org/ns/project-private/1">
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/1"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/1">
-        <file>file:/D:/Documentos/NetBeansProjects/CompiladorPascal_1.6/src/lex_cup/sintatico.cup</file>
+        <file>file:/D:/Documentos/NetBeansProjects/CompiladorPascal_1.8/src/lex_cup/sintatico.cup</file>
+        <file>file:/D:/Documentos/NetBeansProjects/CompiladorPascal_1.8/src/controle/sintatico.java</file>
+        <file>file:/D:/Documentos/NetBeansProjects/CompiladorPascal_1.8/src/visao/Interface.java</file>
+        <file>file:/D:/Documentos/NetBeansProjects/CompiladorPascal_1.8/src/controle/Maquina.java</file>
+        <file>file:/D:/Documentos/NetBeansProjects/CompiladorPascal_1.8/src/entidade/Tipo.java</file>
+        <file>file:/D:/Documentos/NetBeansProjects/CompiladorPascal_1.8/src/entidade/Variavel.java</file>
+        <file>file:/D:/Documentos/NetBeansProjects/CompiladorPascal_1.8/src/entidade/Funcao.java</file>
     </open-files>
 </project-private>

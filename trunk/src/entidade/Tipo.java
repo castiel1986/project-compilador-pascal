@@ -13,6 +13,6 @@ package entidade;
  */
 public enum Tipo implements ElemPilhaSem, InfoComplementar{
 
-    INTEGER, BOOLEAN
-
+    INTEGER, BOOLEAN;
+    
 }

@@ -214,7 +214,7 @@ public class Interface extends javax.swing.JFrame {
     }                                       
 
     private void jBAbrirArquivoActionPerformed(java.awt.event.ActionEvent evt) {                                               
-        JFileChooser fc = new JFileChooser();
+        JFileChooser fc = new JFileChooser("C:\\Users\\Everton\\Desktop\\SimuladorMepaV2");
         File file;
         String str, texto = "";
         int res;
