@@ -56,7 +56,7 @@ public class Maquina {
     }
 
     public void carregaInstrucoes() {
-        String texto = new String(mepa.toString());
+        String texto = mepa.toString();
         System.out.println("Mepa: " + mepa.toString());
         StringTokenizer tok = new StringTokenizer(texto, "\n");
         int contalinha = 0;
@@ -66,17 +66,17 @@ public class Maquina {
                     strInstrucao = new StringBuffer(""),
                     strOperando = new StringBuffer("");
             int Rotulo = 0, Operando = 0;
-            int i = 0;
+            int j = 0;
             boolean fim = false, achou = false;
             while (!fim) {
                 /*----------- ROTULO ----------*/
-                if (i == 0 && linha.charAt(i) == 'L') {
-                    i++;
+                if (j == 0 && linha.charAt(j) == 'L') {
+                    j++;
                     strRotulo = new StringBuffer("");
-                    while (linha.charAt(i) != ':') {
-                        strRotulo.append(linha.charAt(i++));
+                    while (linha.charAt(j) != ':') {
+                        strRotulo.append(linha.charAt(j++));
                     }
-                    i++;
+                    j++;
                     if (strRotulo.length() != 0) {
                         Rotulo = Integer.parseInt(strRotulo.toString());
                     } else {
@@ -86,21 +86,21 @@ public class Maquina {
                 }
 
                 /*--------- INSTRUCAO ----------*/
-                i++;
+                j++;
                 strInstrucao = new StringBuffer("");
-                while (i < linha.length() && linha.charAt(i) != '\t') {
-                    strInstrucao.append(linha.charAt(i++));
+                while (j < linha.length() && linha.charAt(j) != '\t') {
+                    strInstrucao.append(linha.charAt(j++));
                 }
 
                 /*---------- OPERANDO ----------*/
-                if (i < linha.length()) {
-                    i++;
-                    if (linha.charAt(i) == 'L') {
-                        i++;
+                if (j < linha.length()) {
+                    j++;
+                    if (linha.charAt(j) == 'L') {
+                        j++;
                     }
                     strOperando = new StringBuffer("");
-                    while (i < linha.length()) {
-                        strOperando.append(linha.charAt(i++));
+                    while (j < linha.length()) {
+                        strOperando.append(linha.charAt(j++));
                     }
                     if (strOperando.length() != 0) {
                         System.out.println("Operando: " + strOperando);
@@ -112,23 +112,23 @@ public class Maquina {
                 }
                 fim = true;
             }
-            i = 0;
+            j = 0;
             fim = false;
             achou = false;
             String sInstrucao = strInstrucao.toString();
             while (!achou && !fim) {
-                if (i >= nomeInstrucoes.length) {
+                if (j >= nomeInstrucoes.length) {
                     fim = true;
-                } else if (sInstrucao.compareTo(nomeInstrucoes[i]) == 0) {
+                } else if (sInstrucao.compareTo(nomeInstrucoes[j]) == 0) {
                     achou = true;
                 } else {
-                    i++;
+                    j++;
                 }
             }
             if (!achou) {
                 System.out.println("Nao achou = " + sInstrucao);
             }
-            P.addElement(new Instrucao(i, Rotulo, Operando));
+            P.addElement(new Instrucao(j, Rotulo, Operando));
             contalinha++;
         }
     }
@@ -383,12 +383,12 @@ public class Maquina {
                     System.out.print("IMPR");
                 }
                 i++;
-                return new String(String.valueOf(M[s--])) + "\n";
+                return String.valueOf(M[s--]) + "\n";
             case LEIT:
                 if (mostra) {
                     System.out.print("LEIT");
                 }
-                String valor = new String("0");
+                String valor = "0";
                 int val = 0;
                 dl = new DialogLeitura(new Frame(""));
                 dl.requestFocus();

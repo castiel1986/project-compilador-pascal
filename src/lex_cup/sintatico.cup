@@ -27,6 +27,10 @@ parser code  {:
     int indiceParametro;               /* Indica qual parâmetro está sendo compilado */
     ElemTabSimb elemRotina;          /* Instância do procedimento que está sendo compilado */
 
+    /* Pilha de Controle de Tipos - PcT*/
+    LinkedList<Tipo> pct = new LinkedList<Tipo>();
+    int analisar_expr;                   /* Indica se é ou não avaliar a expressão*/ 
+
     Rotulo ultimoRotulo;
     LinkedList<ElemPilhaSem> pilhaSem = new LinkedList<ElemPilhaSem>();
     ArrayList<ElemTabSimb> tabSimbolo = new ArrayList<ElemTabSimb>();
@@ -76,6 +80,10 @@ parser code  {:
 
     public void mostraPilhaSem(){
         System.out.println("PilhaSemantica - "+pilhaSem.toString()+"\n");
+    }
+
+    public void mostraPcT(){
+        System.out.println("Pilha de Controle de Tipos - "+pct.toString()+"\n");
     }
 
     public ElemTabSimb buscaSimbolo(String id){
@@ -170,58 +178,66 @@ parser code  {:
         Mecanismo mec;
         InfoComplementar infoC;
         int aux;
-        
+        IndiceArray indAr = null;
+        Tipo tipo = null;
+
         aux = -numeroEntradas - 2;
-        parametros = new ArrayList<Variavel>();    
+        parametros = new ArrayList<Variavel>();
 
         for (int i = 0; i < numeroEntradas;) {
 
-            /* Desempilhar tipo do Mecanismo */
-            listId = new ArrayList<ElemTabSimb>();
-            if(elemPilha instanceof Mecanismo){
-                mec = (Mecanismo) elemPilha;
-            }else{
-                mec = (Mecanismo) it.next();
-            }
+            indAr = null;
+            tipo = null;    
+            mec = (Mecanismo) it.next();
             it.remove();
 
+            listId = new ArrayList<ElemTabSimb>();
             /* Desempilhar lista de identificadores */
-            while ( it.hasNext() && (elemPilha = (ElemPilhaSem) it.next()) instanceof ElemTabSimb) {
+            while ((elemPilha = (ElemPilhaSem) it.next()) instanceof ElemTabSimb) {
                 elemTab = (ElemTabSimb) elemPilha;
                 listId.add(elemTab);
                 it.remove();
                 i++;
             }
 
+            if (elemPilha instanceof IndiceArray) {
+                
+                it.remove();
+                indAr = (IndiceArray) elemPilha;
+                tipo = (Tipo) it.next();
+                it.remove();
+            } else {
+                
+                it.remove();
+                tipo = (Tipo) elemPilha;
+            }
+
             /* Setar os atributos dos parâmetros */
-            Variavel param;
             for (int j = 0; j < listId.size(); j++) {
 
                 /* Verificar se é Array */
-                if (elemPilha instanceof IndiceArray) {
+                if (indAr != null) {
+
                     /* Setar limites do Array*/
-                    aux = aux - ( ((IndiceArray)elemPilha).getLimSuperior() - ((IndiceArray)elemPilha).getLimInferior() );
-                    infoC = new Array(aux, Tipo.INTEGER, (IndiceArray)elemPilha, mec);
-                    aux += ((IndiceArray)elemPilha).getLimSuperior() - ((IndiceArray)elemPilha).getLimInferior();
+                    aux = aux - (indAr.getLimSuperior() - indAr.getLimInferior());
+                    infoC = new Array(aux, tipo, indAr, mec);
+                    aux += indAr.getLimSuperior() - indAr.getLimInferior();
                     parametros.add((Array) infoC);
-                }else{
-                    infoC = new Variavel(aux, Tipo.INTEGER, mec);
+
+                } else {
+                    infoC = new Variavel(aux, tipo, mec);
                     parametros.add((Variavel) infoC);
                 }
 
-                aux++;                    
+                aux++;
                 /* Inserir parâmetro na tabela de símbolos*/
                 listId.get(j).setInfoC(infoC);
                 tabSimbolo.add(listId.get(j));
 
             }
 
-            if (elemPilha instanceof IndiceArray) {
-                it.remove();
-            }
-
         }
-
+        
         return parametros;
 
     }
@@ -234,7 +250,14 @@ parser code  {:
         boolean error = false;
 
         elemTab = (ElemTabSimb) pilhaSem.pollLast();
+        if(elemTab.getInfoC() instanceof Funcao){
+            pct.add(((Funcao)elemTab.getInfoC()).getTipo());
+        }else{    
+            pct.add(((Variavel)elemTab.getInfoC()).getTipo());
+        }
 
+        System.out.println("Elemento: "+elemTab);
+        mostraPcT();
         if (elemRotina.getInfoC() instanceof Funcao) {
             f = (Funcao) elemRotina.getInfoC();
 
@@ -291,7 +314,7 @@ parser code  {:
     }
 
     public void declaracaoVariaveis(){
-        
+
         if(contaVars > 0){
 
             /* Posicionar indice no início da declaração de variáveis */
@@ -390,9 +413,9 @@ parser code  {:
 
                     /* Verificar se está sendo compilado um comando de leitura */
                     if(comando_leitura == 1){
-                        mepa.append ("\tALAI\t"+elemTab.getNivel()+","+ v.getDeslocamento()+"\n");
+                        mepa.append ("\tALAI\t"+elemTab.getNivel()+","+ v.getDeslocamento()+","+(((Array)v).getTamArray() - 1)+"\n");
                     }else{
-                        mepa.append ("\tARAI\t"+elemTab.getNivel()+","+ (v.getDeslocamento()+ ((Array)v).getTamArray() - 1)+"\n");
+                        mepa.append ("\tARAI\t"+elemTab.getNivel()+","+ (v.getDeslocamento()+((Array)v).getTamArray() - 1)+"\n");
                     }
 
                 }else{
@@ -553,6 +576,10 @@ parser code  {:
         InfoComplementar infoC = elemTab.getInfoC();
         Variavel v;
 
+        if(analisar_expr == 1){
+            pct.add(((Variavel)infoC).getTipo());
+        }
+
         if (infoC instanceof Array) {
             
             v = (Array)infoC;
@@ -561,7 +588,7 @@ parser code  {:
             mepa.append("\tSUBT\n");
             if(v.isParametro()){
                 if(v.getMecanismo() == Mecanismo.PAS_END){  
-                    mepa.append("\tCREI\t"+elemTab.getNivel()+","+ v.getDeslocamento()+"\n");
+                    mepa.append("\tCREI\t"+elemTab.getNivel()+","+ v.getDeslocamento()+","+(((Array)v).getTamArray() - 1)+"\n");
                 }else{
                     mepa.append("\tCREL\t" + elemTab.getNivel() + "," + v.getDeslocamento() + "\n");
                 }
@@ -589,7 +616,98 @@ parser code  {:
         elemTab.setInfoC(inf);
         tabSimbolo.add(elemTab);
 
+        /* Criar variáveis para os tipos false e true
+        
+        elemTab = new ElemTabSimb("false",0);
+        inf = new Variavel(deslocamento++, Tipo.BOOLEAN);
+        elemTab.setInfoC(inf);
+        tabSimbolo.add(elemTab);
+
+        elemTab = new ElemTabSimb("true",1);
+        inf = new Variavel(deslocamento++, Tipo.BOOLEAN);
+        elemTab.setInfoC(inf);
+        tabSimbolo.add(elemTab);
+
+        */
+
     }
+
+    /* Verificar compatibilidade de tipos - Operador Relacional */
+    public void analisaTipoOPR(){
+
+        //System.out.println("Operador Relacional");
+        //mostraPcT();
+        Tipo tipo1, tipo2;
+        tipo1 =  (Tipo)pct.pollLast();
+        tipo2 =  (Tipo)pct.pollLast();
+        if(tipo1 == Tipo.INTEGER && tipo2 == Tipo.INTEGER){
+            pct.add(Tipo.BOOLEAN);
+        }else if(tipo1 == Tipo.BOOLEAN && tipo2 == Tipo.BOOLEAN){
+            pct.add(tipo1);
+        }else{
+            report_semantic_error ("Expressão inválida "+ tipo1 +" - " + tipo2);
+        }
+        //mostraPcT();
+        //System.out.println();
+        
+    }
+
+    /* Verificar compatibilidade de tipos - Operador Aritmético */
+    public void analisaTipoOPA(){
+        
+        //System.out.println("Operador Aritmético");
+        //mostraPcT();
+        Tipo tipo1, tipo2;
+        tipo1 =  (Tipo)pct.pollLast();
+        tipo2 =  (Tipo)pct.pollLast();
+        if(tipo1 == Tipo.INTEGER &&  tipo2 == Tipo.INTEGER){
+            pct.add(tipo1);
+        }else{
+            report_semantic_error ("Expressão inválida "+ tipo1 +" - " + tipo2);
+        }
+        //mostraPcT();
+        //System.out.println();
+    }
+
+    /* Verificar compatibilidade de tipos - Operador Lógico */
+    public void analisaTipoOPL(){
+        
+        //System.out.println("Operador Lógico");
+        //mostraPcT();
+        Tipo tipo1, tipo2;
+        tipo1 =  (Tipo)pct.pollLast();
+        tipo2 =  (Tipo)pct.pollLast();
+        if(tipo1 == Tipo.BOOLEAN &&  tipo2 == Tipo.BOOLEAN){
+            pct.add(tipo1);
+        }else{
+            report_semantic_error ("Expressão inválida "+ tipo1 +" - " + tipo2);
+        }
+        //mostraPcT();
+        //System.out.println();
+    }
+
+    /* Verificar compatibilidade de tipos na atribuição */
+    public void verificaTiposAtrib(){
+        
+        //System.out.println("Atribuicao");
+        //mostraPcT();
+        Tipo tipo1, tipo2;
+        tipo1 =  (Tipo)pct.pollLast();
+
+        elemTab = (ElemTabSimb)pilhaSem.peekLast();
+        if(elemTab.getInfoC() instanceof Funcao){
+            tipo2 = ((Funcao)elemTab.getInfoC()).getTipo();
+        }else{
+            tipo2 = ((Variavel)elemTab.getInfoC()).getTipo();
+        }
+
+        if(tipo1 != tipo2){
+            report_semantic_error ("Tipos incompatíveis "+ tipo2 +" - " + tipo1);
+        }
+        //mostraPcT();
+        //System.out.println();    
+    }
+
 :};
 
 terminal 
@@ -633,6 +751,7 @@ programa
     :}
     S_PROGRAM S_IDENTIF S_PONTOVG bloco S_PONTO
     {: 
+        //parser.mostraPcT();
         parser.mepa.append ("\tPARA\n\tFIM\n"); 
     :}
 ;
@@ -962,18 +1081,26 @@ comando_sem_rotulo
         :}
     | atribuicao
         {:
+            parser.verificaTiposAtrib();
             parser.armazena();
+            parser.analisar_expr = 0;
         :}
     | composto
     | condicional
+        {:
+            parser.analisar_expr = 0;
+        :}
     | repetitivo
+        {:
+            parser.analisar_expr = 0;
+        :}
 ;
 
 chamada_procedimento
     ::= S_IDENTIF:id
     {:
         parser.chamada_rotina = 1;
-        parser.indiceParametro = 0;      
+        parser.indiceParametro = 0;
         parser.inicioChamadaProc(id.toString());
     :}
     parametros
@@ -992,7 +1119,8 @@ lista_de_parametros_atuais
     {:
         parser.indiceParametro++;
     :}
-    | parametros_atuais
+    | 
+    parametros_atuais
     {:
         parser.indiceParametro++;
     :}
@@ -1008,19 +1136,18 @@ chamada_comando_escrita
     ::= S_WRITE
     {:
         parser.comando_escrita = 1;
+        parser.analisar_expr = 1;
     :}
     S_ABREPAR lista_de_expressoes S_FECHAPAR
     {:
         parser.comando_escrita = 0;
+        parser.analisar_expr = 0;
+        parser.pct.pollLast();
     :}
 ;
 
 chamada_comando_leitura
-    ::= S_READ
-    {:
-        //parser.pilhaSem.add(Marca.COMANDO_LEITURA);
-    :}
-    S_ABREPAR lista_de_variaveis S_FECHAPAR
+    ::= S_READ S_ABREPAR lista_de_variaveis S_FECHAPAR
 ;
 
 lista_de_expressoes
@@ -1075,7 +1202,11 @@ atribuicao
             parser.mepa.append("\tSUBT\n");
         }
     :}
-    S_ATRIBUI expressao
+    S_ATRIBUI
+    {:
+        parser.analisar_expr = 1;
+    :}
+    expressao
 ;
 
 variavel_de_acesso
@@ -1107,8 +1238,12 @@ lista_comandos_sem_rotulo
 
 condicional
     ::= S_IF
+    {:
+        parser.analisar_expr = 1;
+    :}
     expressao
     {:
+        parser.pct.pollLast();
         parser.inicioIF();
     :}
     S_THEN
@@ -1130,54 +1265,67 @@ alternativa_cond
 
 repetitivo
     ::= S_WHILE
-    {:
-        parser.inicioComRepetitivo();
-    :}
-    expressao
-    {:
-        parser.condicaoWhile();
-    :}
-    S_DO comando_sem_rotulo
-    {:
-        parser.fimWhile();
-    :}
-    |
-    S_REPEAT
-    {:
-        parser.inicioComRepetitivo();
-    :}
-    sequencia_comandos
-    S_UNTIL
-    expressao
-    {:
-        parser.condicaoRepeat();
-    :}
+        {:
+            parser.inicioComRepetitivo();
+            parser.analisar_expr = 1;
+        :}
+        expressao
+        {:
+            parser.condicaoWhile();
+            parser.pct.pollLast();
+        :}
+        S_DO comando_sem_rotulo
+        {:
+            parser.fimWhile();
+        :}
+
+    | S_REPEAT
+        {:
+            parser.inicioComRepetitivo();
+        :}
+        sequencia_comandos
+        S_UNTIL
+        {:
+            parser.analisar_expr = 1;
+        :}
+        expressao
+        {:
+            parser.condicaoRepeat();
+            parser.pct.pollLast();
+        :}
 ;
 
 expressao
     ::= expressao_simples S_IGUAL expressao_simples
     {: 
-        parser.mepa.append ("\tCMIG\n"); 
+            
+        parser.mepa.append ("\tCMIG\n");
+        parser.analisaTipoOPR();
     :}
     | expressao_simples S_DIFERENTE expressao_simples
     {:  
         parser.mepa.append ("\tCMDG\n"); 
+        parser.analisaTipoOPR();
     :}
     | expressao_simples S_MENOR expressao_simples
     {: 
         parser.mepa.append ("\tCMME\n"); 
+        parser.analisaTipoOPR();
     :}
     | expressao_simples S_MAIOR expressao_simples
     {: 
+        parser.analisaTipoOPR();
         parser.mepa.append ("\tCMMA\n"); 
     :}
     | expressao_simples S_MEIGUAL expressao_simples
     {: 
         parser.mepa.append ("\tCMEG\n"); 
+        parser.analisaTipoOPR();
     :}
     | expressao_simples S_MAIGUAL expressao_simples
     {: 
         parser.mepa.append ("\tCMAG\n"); 
+        parser.analisaTipoOPR();
     :}
     | expressao_simples
 ;
@@ -1185,15 +1333,18 @@ expressao
 expressao_simples
     ::= expressao_simples S_MAIS  termo
     {: 
+        parser.analisaTipoOPA();
         parser.mepa.append ("\tSOMA\n"); 
     :}
     | expressao_simples S_MENOS termo
     {: 
-        parser.mepa.append ("\tSUBT\n"); 
+        parser.mepa.append ("\tSUBT\n");
+        parser.analisaTipoOPA();
     :}
     | expressao_simples S_OR termo
     {: 
         parser.mepa.append ("\tDISJ\n"); 
+        parser.analisaTipoOPL();
     :}
     | S_MAIS termo
     | S_MENOS termo
@@ -1207,14 +1358,17 @@ termo
     ::= termo S_VEZES fator
     {: 
         parser.mepa.append ("\tMULT\n"); 
+        parser.analisaTipoOPA();
     :}
     | termo S_DIV fator
     {: 
         parser.mepa.append ("\tDIVI\n"); 
+        parser.analisaTipoOPA();
     :}
     | termo S_AND fator
     {: 
         parser.mepa.append ("\tCONJ\n"); 
+        parser.analisaTipoOPL();
     :}
     | fator
 ;
@@ -1231,7 +1385,10 @@ fator
     :}
     | S_NUMERO:numero
     {: 
-        parser.mepa.append ("\tCRCT\t"+numero+"\n"); 
+        parser.mepa.append ("\tCRCT\t"+numero+"\n");
+        if(parser.analisar_expr == 1){
+            parser.pct.add(Tipo.INTEGER);
+        }
     :}
     | chamada_funcao
     {:
@@ -1240,6 +1397,9 @@ fator
         parser.elemTab = (ElemTabSimb) parser.pilhaSem.pollLast();
         Funcao func = (Funcao) parser.elemTab.getInfoC();
         parser.mepa.append ("\tCHPR\t"+"L"+func.getRotulo()+"\n");
+        if(parser.analisar_expr == 1){
+            parser.pct.add(func.getTipo());
+        }
      :}
     | S_ABREPAR expressao S_FECHAPAR
     | S_NOT fator
